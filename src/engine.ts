@@ -14,6 +14,7 @@ import { angkatKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
 import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
 import { harianUnjuk, tanganiUnjuk } from './unjuk.ts';
+import { aturBpd, aturPerdes, aturRelasi, aturWakil, bulananRelasi, dukungCalon, faktorTermin, harianRelasi, perdesAktif, responMosi } from './relasi.ts';
 import { efekRekananProyek, kontrakRekanan, maksProyek } from './rekanan.ts';
 import { berhentikanStaf, cariKandidat, efekKeStaf, isiTokohStaf, pegawaiKeluar, segarkanKandidat, upgradeKantor } from './kepegawaian.ts';
 import { tebakGender,
@@ -260,14 +261,12 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
       log(state, events, 'buruk', `Sisa anggaran (SiLPA) tahun lalu terlalu besar. Kabupaten memotong termin pertama ${potong * 100}% karena dana desa dianggap tidak terserap.`);
     }
   }
-  if (hasFlag(state, 'restu_bupati')) {
-    jumlah = Math.round(jumlah * 1.15);
-    removeFlag(state, 'restu_bupati');
-    log(state, events, 'politik', 'Bupati yang kamu dukung "membantu" pencairan: termin dana desa ditambah 15%.');
-  } else if (hasFlag(state, 'dimusuhi_bupati')) {
-    jumlah = Math.round(jumlah * 0.85);
-    removeFlag(state, 'dimusuhi_bupati');
-    log(state, events, 'buruk', 'Kabupaten memotong termin dana desa 15% dengan alasan "evaluasi kinerja".');
+  // relasi dengan bupati menentukan termin (sampai ±10%)
+  const fTermin = faktorTermin(state);
+  if (Math.abs(fTermin - 1) >= 0.03) {
+    jumlah = Math.round(jumlah * fTermin);
+    if (fTermin > 1) log(state, events, 'politik', `Bupati yang dekat denganmu "membantu" pencairan: termin dana desa ditambah ${Math.round((fTermin - 1) * 100)}%.`);
+    else log(state, events, 'buruk', `Kabupaten memotong termin dana desa ${Math.round((1 - fTermin) * 100)}% dengan alasan "evaluasi kinerja".`);
   }
   if (hasFlag(state, 'potong_termin')) {
     jumlah = Math.round(jumlah * 0.4);
@@ -323,6 +322,9 @@ function paksaProgramWajib(state: VillageState, events: LogEntry[]): void {
 
 function dailyUpdate(state: VillageState, events: LogEntry[]): void {
   harianPolitik(state, (j, t) => log(state, events, j, t));
+  if (state.status !== 'menjabat') return;
+  // relasi atasan & aparat, pemilu atasan, mosi pemakzulan
+  harianRelasi(state, (j, t) => log(state, events, j, t));
   if (state.status !== 'menjabat') return;
   harianMega(state, (j, t) => {
     log(state, events, j, t);
@@ -467,6 +469,7 @@ function closeMonth(state: VillageState, events: LogEntry[]): void {
   bulananPenduduk(state, (j, t) => log(state, events, j, t));
   // gaji kades, kecurigaan, dan audit inspektorat (politik.ts)
   bulananPolitik(state, (j, t) => log(state, events, j, t));
+  if (state.status === 'menjabat') bulananRelasi(state, (j, t) => log(state, events, j, t));
   bulananInvestasi(state, (j, t) => log(state, events, j, t));
   if (state.status !== 'menjabat') return;
 
@@ -661,7 +664,18 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     log(state, events, jenis, teks);
     return { state, events };
   };
-  if (action.type === 'aksi_gelap') return politik(aksiGelap(state, action.jenis), 'buruk');
+  if (action.type === 'aksi_gelap') {
+    const teks = aksiGelap(state, action.jenis);
+    // perdes keterbukaan anggaran: permainan anggaran lebih cepat tercium
+    if (perdesAktif(state, 'transparansi')) state.politik.kecurigaan = Math.min(100, state.politik.kecurigaan + 5);
+    return politik(teks, 'buruk');
+  }
+  if (action.type === 'relasi') return politik(aturRelasi(state, action.aksi, action.tokoh), 'politik');
+  if (action.type === 'dukung_calon') return politik(dukungCalon(state, action.calonId, action.cara), 'politik');
+  if (action.type === 'bpd') return politik(aturBpd(state, action.aksi), 'politik');
+  if (action.type === 'perdes') return politik(aturPerdes(state, action.id, action.aksi), 'politik');
+  if (action.type === 'mosi') return politik(responMosi(state, action.cara), 'politik');
+  if (action.type === 'wakil') return politik(aturWakil(state, action.aksi, action.id), 'politik');
   if (action.type === 'pakai_dompet') return politik(pakaiDompet(state, action.tujuan, action.jumlah));
   if (action.type === 'hadapi_audit') return politik(action.pilihan === 'ngeles' ? bukaSidang(state) : selesaikanAudit(state, action.pilihan, catat));
   if (action.type === 'jawab_auditor') {

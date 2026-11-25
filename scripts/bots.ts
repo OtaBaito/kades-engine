@@ -48,6 +48,32 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
       if (s.unjuk?.penanganan || s.unjuk !== sebelum) break;
     }
   }
+  // politik ke atas: jujur netral dan rajin rapat terbuka; serakah melobi dan mengerahkan; acak sembarang
+  const rl = s.relasi;
+  if (rl) {
+    if (!rl.wakil && rl.kandidatWakil.length) {
+      const k = bot === 'acak' ? rl.kandidatWakil[Math.floor(rand() * rl.kandidatWakil.length)] : [...rl.kandidatWakil].sort((a, b) => nilaiWakil(b, bot) - nilaiWakil(a, bot))[0];
+      coba({ type: 'wakil', aksi: 'pilih', id: k.id });
+    }
+    if (rl.pemilihan && !rl.pemilihan.dukung) {
+      const c = rl.pemilihan.calon[rl.pemilihan.calon[0].kekuatan >= rl.pemilihan.calon[1].kekuatan ? 0 : 1];
+      if (bot === 'jujur') coba({ type: 'dukung_calon', calonId: null, cara: 'netral' });
+      else if (bot === 'serakah') coba({ type: 'dukung_calon', calonId: c.id, cara: 'kerahkan' });
+      else coba({ type: 'dukung_calon', calonId: rl.pemilihan.calon[Math.floor(rand() * 2)].id, cara: (['netral', 'restu', 'kerahkan'] as const)[Math.floor(rand() * 3)] });
+    }
+    if (rl.mosi) {
+      for (const cara of ['dialog', 'perlindungan', 'lobi'] as const) coba({ type: 'mosi', cara });
+    }
+    if (bot === 'jujur' || (bot === 'acak' && rand() < 0.2)) coba({ type: 'bpd', aksi: 'rapat_terbuka' });
+    if (bot === 'serakah') {
+      coba({ type: 'bpd', aksi: 'jamuan' });
+      coba({ type: 'relasi', aksi: 'sowan', tokoh: 'bupati' });
+      coba({ type: 'relasi', aksi: 'sowan', tokoh: 'kapolsek' });
+    }
+    if (bot === 'jujur' && rl.perdes.length === 0) coba({ type: 'perdes', id: 'transparansi', aksi: 'usul' });
+    if (bot === 'acak' && rand() < 0.05) coba({ type: 'perdes', id: ['retribusi_pasar', 'jam_malam', 'musdes_rutin', 'larangan_tambang'][Math.floor(rand() * 4)], aksi: 'usul' });
+    if (rl.wakil && rl.wakil.loyalitas < 35 && bot !== 'acak') coba({ type: 'wakil', aksi: 'rangkul' });
+  }
   // rutinitas kecil: tagih, tanggapi aspirasi, klaim misi
   coba({ type: 'tagih' });
   for (const a of buildView(s).aspirasi) if (bot !== 'acak' || rand() < 0.5) coba({ type: 'tanggapi_aspirasi', id: a.id });
@@ -99,4 +125,9 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
     }
   }
   return s;
+}
+
+const WAKIL_KOTOR = new Set(['anak_juragan', 'keponakan_bupati', 'kader_partai']);
+function nilaiWakil(w: { latar: string; loyalitas: number; ambisi: number }, bot: BotName): number {
+  return w.loyalitas - w.ambisi + (bot === 'jujur' && WAKIL_KOTOR.has(w.latar) ? -100 : 0) + (bot === 'serakah' && WAKIL_KOTOR.has(w.latar) ? 40 : 0);
 }

@@ -247,7 +247,7 @@ export interface ElectionResult {
 
 export type TipeDesa = 'agraris' | 'wisata' | 'pinggiran' | 'religius';
 
-export type VillageStatus = 'menjabat' | 'kalah' | 'purna' | 'ditangkap' | 'pensiun' | 'naik_kelas';
+export type VillageStatus = 'menjabat' | 'kalah' | 'purna' | 'ditangkap' | 'pensiun' | 'naik_kelas' | 'dimakzulkan';
 
 export type PeranKeluarga = 'pasangan' | 'anak' | 'adik' | 'ipar';
 
@@ -341,6 +341,8 @@ export interface VillageState {
   /** Aksi massa yang sedang berlangsung (unjuk.ts). */
   unjuk?: import('./unjuk.ts').StateUnjuk | null;
   unjukTerakhir?: number;
+  /** Relasi dengan aparat dan atasan, BPD, perdes, pemilu atasan, wakil kades (relasi.ts). */
+  relasi?: import('./relasi.ts').StateRelasi;
   dekorasi: string[];
   /** Level tiap unit BUMDes (0 = belum dibangun). */
   bumdes: Record<string, number>;
@@ -411,6 +413,12 @@ export type Action =
   | { type: 'promosi_keluarga'; id: string; cara: CaraPromosi; alasan?: string }
   | { type: 'angkat_keluarga'; id: string; jabatan: string; alasan?: string }
   | { type: 'tangani_unjuk'; cara: 'temui' | 'penuhi' | 'polisi' | 'tentara' | 'ormas' | 'biarkan'; alasan?: string }
+  | { type: 'relasi'; aksi: 'sowan' | 'kritik'; tokoh: 'kapolsek' | 'danramil' | 'camat' | 'bupati' | 'gubernur' | 'presiden'; alasan?: string }
+  | { type: 'dukung_calon'; calonId: string | null; cara: 'netral' | 'restu' | 'kerahkan'; alasan?: string }
+  | { type: 'bpd'; aksi: 'jamuan' | 'rapat_terbuka'; alasan?: string }
+  | { type: 'perdes'; id: string; aksi: 'usul' | 'cabut'; alasan?: string }
+  | { type: 'mosi'; cara: 'lobi' | 'dialog' | 'perlindungan'; alasan?: string }
+  | { type: 'wakil'; aksi: 'pilih' | 'rangkul' | 'berhentikan' | 'cari'; id?: string; alasan?: string }
   | { type: 'pajak'; aksi: 'setor' | 'otomatis_nyala' | 'otomatis_mati' | 'pbb_normal' | 'pbb_gencar' | 'pbb_ringan'; alasan?: string }
   | { type: 'investasi'; jenis: 'cadangan' | 'modal_bumdes' | 'kripto'; arah: 'simpan' | 'tarik'; jumlah: number; alasan?: string }
   | { type: 'pilih_penerus'; id: string; alasan?: string }

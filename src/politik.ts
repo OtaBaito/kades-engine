@@ -1,6 +1,7 @@
 // Politik desa yang bebas: dompet pribadi & aksi gelap, kecurigaan & audit, keluarga & penerus,
 // kampanye melawan calon NPC, lobi mengubah aturan masa jabatan, dan rapor "Warisan".
 // Semua nama orang, lembaga, dan aturan di sini fiktif.
+import { faktorAudit } from './relasi.ts';
 import { JABATAN_DESA, angkatKeluarga, honorKeluarga } from './jabatan.ts';
 import { GROUPS } from './content/groups.ts';
 import { GameError } from './errors.ts';
@@ -270,7 +271,7 @@ export function bulananPolitik(s: VillageState, catat: Catat): void {
 
   // audit inspektorat
   if (!p.kasus) {
-    const peluang = Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0);
+    const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s);
     if (nextRandom(s) < peluang) {
       const nilai = Math.round(p.totalKorupsi * 0.6 + 10 * JT);
       p.kasus = { mulai: s.hari, batas: s.hari + POLITIK.batasHariAudit, nilai };
@@ -722,11 +723,12 @@ export function raporWarisan(s: VillageState): RaporWarisan {
   const tahunBerkuasa = Math.round((s.hari / 360) * 10) / 10;
   const kuasa = Math.round(clamp(tahunBerkuasa * 12.5));
   const harta = Math.round(clamp(Math.max(0, p.dompet + nilaiAset(s)) / (10 * JT)));
-  const namaBaik = Math.round(clamp(s.integritas - (s.status === 'ditangkap' ? 40 : 0) - p.pernahKasus * 5));
+  const namaBaik = Math.round(clamp(s.integritas - (s.status === 'ditangkap' ? 40 : s.status === 'dimakzulkan' ? 20 : 0) - p.pernahKasus * 5));
   const pembangunan = poinPembangunan(s.nilaiPembangunan ?? 0);
   const total = Math.round((desa * 0.3 + kuasa * 0.2 + harta * 0.15 + namaBaik * 0.2 + pembangunan * 0.15) * 10) / 10;
   let gelar: string;
   if (s.status === 'ditangkap') gelar = harta >= 50 ? 'Koruptor Apes' : 'Napi Tipikor';
+  else if (s.status === 'dimakzulkan') gelar = 'Dimakzulkan BPD';
   else if (s.status === 'naik_kelas') gelar = 'Naik Kelas ke Kabupaten';
   else if (p.pemimpin !== 'pemain' || p.tahunDinasti > 0) gelar = `Dinasti ${Math.max(1, Math.round(tahunBerkuasa))} Tahun`;
   else if (harta >= 60 && namaBaik < 40) gelar = 'Koruptor Lolos';

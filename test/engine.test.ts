@@ -165,3 +165,64 @@ test('aksi massa: mogok buruh memundurkan pembangunan, penuhi tuntutan membubark
   s = advance(s, 2).state;
   assert.equal(s.unjuk ?? null, null);
 });
+
+test('relasi: sowan menaikkan relasi, kritik menurunkan, dan bupati menentukan termin', () => {
+  let s = baru('relasi');
+  s.politik.dompet = 200_000_000;
+  s = applyAction(s, { type: 'relasi', aksi: 'sowan', tokoh: 'bupati' }).state;
+  assert.ok(s.relasi!.tokoh.bupati.relasi > 50);
+  assert.throws(() => applyAction(s, { type: 'relasi', aksi: 'sowan', tokoh: 'bupati' }), GameError, 'jeda sowan');
+  s = applyAction(s, { type: 'relasi', aksi: 'kritik', tokoh: 'camat' }).state;
+  assert.ok(s.relasi!.tokoh.camat.relasi < 50);
+  assert.throws(() => applyAction(s, { type: 'relasi', aksi: 'sowan', tokoh: 'presiden' }), GameError, 'presiden butuh popularitas');
+});
+
+test('relasi: pemilu atasan dimulai sesuai jadwal dan hasilnya memengaruhi relasi', () => {
+  let s = baru('pilbup');
+  s.politik.dompet = 500_000_000;
+  let p = null;
+  for (let i = 0; i < 200 && !p; i++) {
+    s = advance(s, 1).state;
+    p = s.relasi?.pemilihan ?? null;
+  }
+  assert.ok(p, 'pemilihan dimulai');
+  const jenis = p.jenis;
+  s = applyAction(s, { type: 'dukung_calon', calonId: p.calon[0].id, cara: 'kerahkan' }).state;
+  assert.throws(() => applyAction(s, { type: 'dukung_calon', calonId: null, cara: 'netral' }), GameError);
+  s = advance(s, 31).state;
+  const rel = s.relasi!.tokoh[jenis].relasi;
+  assert.ok(rel >= 80 || rel <= 15, `relasi ekstrem setelah kerahkan: ${rel}`);
+});
+
+test('relasi: perdes disahkan BPD dan berefek tiap bulan; wakil kades bisa dipilih', () => {
+  let s = baru('perdes');
+  s.relasi = undefined;
+  s = applyAction(s, { type: 'bpd', aksi: 'rapat_terbuka' }).state;
+  s.relasi!.bpd = 100;
+  s = applyAction(s, { type: 'perdes', id: 'retribusi_pasar', aksi: 'usul' }).state;
+  assert.ok(s.relasi!.perdes.includes('retribusi_pasar'));
+  const kandidat = s.relasi!.kandidatWakil[0];
+  s = applyAction(s, { type: 'wakil', aksi: 'pilih', id: kandidat.id }).state;
+  assert.equal(s.relasi!.wakil?.nama, kandidat.nama);
+  const v = buildView(s);
+  assert.equal(v.relasi.wakil?.id, kandidat.id);
+});
+
+test('relasi: BPD yang muak memakzulkan kades kalau bupati tidak melindungi', () => {
+  let s = advance(baru('makzul'), 100).state;
+  s.relasi!.mosi = { mulaiHari: s.hari, batasHari: s.hari + 2, respon: [], dilindungi: false };
+  s.relasi!.bpd = 0;
+  s.relasi!.tokoh.bupati.relasi = 30;
+  // tahan supaya BPD tidak pulih
+  s.popularitas = 0;
+  s = advance(s, 3).state;
+  assert.equal(s.status, 'dimakzulkan');
+  // dengan perlindungan bupati kades selamat
+  let t = advance(baru('makzul2'), 100).state;
+  t.relasi!.mosi = { mulaiHari: t.hari, batasHari: t.hari + 2, respon: [], dilindungi: false };
+  t.relasi!.bpd = 0;
+  t.relasi!.tokoh.bupati.relasi = 80;
+  t = applyAction(t, { type: 'mosi', cara: 'perlindungan' }).state;
+  t = advance(t, 3).state;
+  assert.equal(t.status, 'menjabat');
+});

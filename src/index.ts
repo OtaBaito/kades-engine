@@ -26,6 +26,7 @@ export { KREDIT } from './kredit.ts';
 export { REKANAN, maksProyek } from './rekanan.ts';
 export { MEGA } from './mega.ts';
 export { PAJAK, kasBersih } from './pajak.ts';
+export { LATAR_WAKIL, MAKS_PERDES, NAMA_PEMILIHAN, PERDES, TOKOH, TUNJANGAN_WAKIL } from './relasi.ts';
 export { CARA as CARA_TANGANI_UNJUK, biayaTuntutan } from './unjuk.ts';
 export { AKSI_GELAP, POLITIK, gosip, namaPemimpin, raporWarisan, type RaporWarisan } from './politik.ts';
 export { KANTOR, SIFAT } from './kepegawaian.ts';

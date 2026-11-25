@@ -35,6 +35,7 @@ import {
   teksKartu,
   statusDesa,
 } from './engine.ts';
+import { NAMA_PEMILIHAN, viewRelasi } from './relasi.ts';
 import type { Effect, GroupId, IndexId, VillageState } from './types.ts';
 
 const NAMA_KELOMPOK = Object.fromEntries(GROUPS.map((g) => [g.id, g.nama])) as Record<GroupId, string>;
@@ -227,6 +228,7 @@ export function buildView(state: VillageState) {
     investasi: viewInvestasi(state),
     pajak: viewPajak(state),
     unjuk: viewUnjuk(state),
+    relasi: viewRelasi(state),
     programWajib: {
       belum: PROJECTS.filter((p) => p.wajib && !isBuilt(state, p.id)).map((p) => ({ id: p.id, nama: p.nama, dikerjakan: isRunning(state, p.id) })),
       tertahan: state.danaTertahan ?? 0,
@@ -499,8 +501,8 @@ export type VillageView = ReturnType<typeof buildView>;
  * Satu tujuan terdekat yang paling memotivasi untuk ditampilkan di layar utama:
  * pilih yang progresnya paling dekat selesai (tapi belum selesai).
  */
-function tujuanBerikut(state: VillageState): { teks: string; progres: number; tab: 'misi' | 'bangun' | 'pegawai' | 'kades' | 'keuangan' } | null {
-  const calon: { teks: string; progres: number; tab: 'misi' | 'bangun' | 'pegawai' | 'kades' | 'keuangan' }[] = [];
+function tujuanBerikut(state: VillageState): { teks: string; progres: number; tab: 'misi' | 'bangun' | 'pegawai' | 'kades' | 'keuangan' | 'politik' } | null {
+  const calon: { teks: string; progres: number; tab: 'misi' | 'bangun' | 'pegawai' | 'kades' | 'keuangan' | 'politik' }[] = [];
   const xpNaik = xpNaikLevel(state.level ?? 1);
   calon.push({ teks: `${xpNaik - (state.xp ?? 0)} XP lagi ke Lv ${(state.level ?? 1) + 1}`, progres: (state.xp ?? 0) / xpNaik, tab: 'misi' });
   for (const m of [...(state.misi?.daftar ?? []), ...(state.misiMingguan?.daftar ?? [])]) {
@@ -521,6 +523,11 @@ function tujuanBerikut(state: VillageState): { teks: string; progres: number; ta
   // peringatan SiLPA mengalahkan tujuan lain: kas menumpuk menjelang tutup tahun bisa memotong dana desa
   const bulan = Math.floor((state.hari % HARI_PER_PERIODE) / RULES.hariPerBulan) + 1;
   const batas = batasSilpa(state);
+  const rl = state.relasi;
+  if (rl?.mosi) return { teks: `BPD menggulirkan mosi pemakzulan: ${Math.max(0, rl.mosi.batasHari - state.hari)} hari lagi`, progres: 0.05, tab: 'politik' };
+  if (rl?.pemilihan && !rl.pemilihan.dukung) {
+    return { teks: `${NAMA_PEMILIHAN[rl.pemilihan.jenis]}: tentukan sikapmu`, progres: 1 - Math.max(0, rl.pemilihan.hasilHari - state.hari) / 30, tab: 'politik' };
+  }
   const pj = state.pajak;
   if (pj && pj.tunggakanBulan > 0 && pj.titipan > 0) {
     return { teks: `Titipan pajak ${formatRupiah(pj.titipan)} menunggak ${pj.tunggakanBulan} bln: setor sekarang`, progres: 0.1, tab: 'keuangan' };

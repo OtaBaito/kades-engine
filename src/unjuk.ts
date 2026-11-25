@@ -4,6 +4,7 @@
 // setiap hari selama berlangsung, dan makin panas kalau dibiarkan sampai akhirnya ricuh.
 // Kades bisa menemui massa, memenuhi tuntutan, atau membubarkan dengan polisi, tentara, atau ormas.
 // Semua acak memakai RNG ber-seed di state (deterministik).
+import { faktorPemicuUnjuk, namaTokoh, relasiAparat } from './relasi.ts';
 import { arus } from './arus.ts';
 import { GROUPS } from './content/groups.ts';
 import { GameError } from './errors.ts';
@@ -87,7 +88,7 @@ export function harianUnjuk(s: VillageState, catat: Catat): void {
     return;
   }
   // mogok buruh proyek: hanya saat ada pembangunan
-  if (s.proyekBerjalan.length > 0 && nextRandom(s) < (s.kas < 0 ? 0.03 : 0.006)) {
+  if (s.proyekBerjalan.length > 0 && nextRandom(s) < (s.kas < 0 ? 0.03 : 0.006) * faktorPemicuUnjuk(s, 'mogok_buruh')) {
     mulai(s, 'mogok_buruh', 'pemuda', 'Upah buruh proyek telat dan di bawah UMR, minta dinaikkan', catat);
     return;
   }
@@ -96,7 +97,7 @@ export function harianUnjuk(s: VillageState, catat: Catat): void {
   for (const g of Object.keys(s.kepuasan) as GroupId[]) if (s.kepuasan[g] < s.kepuasan[terburuk]) terburuk = g;
   const k = s.kepuasan[terburuk];
   const gosip = s.politik?.kecurigaan ?? 0;
-  const peluang = (k < 35 ? ((35 - k) / 35) * 0.035 : 0) + (gosip > 60 ? (gosip - 60) / 1500 : 0);
+  const peluang = ((k < 35 ? ((35 - k) / 35) * 0.035 : 0) + (gosip > 60 ? (gosip - 60) / 1500 : 0)) * faktorPemicuUnjuk(s, 'demo');
   if (peluang > 0 && nextRandom(s) < peluang) {
     const transparansi = gosip > 60 && nextRandom(s) < 0.5;
     const kelompok: GroupId = transparansi ? 'tokoh' : terburuk;
@@ -208,11 +209,13 @@ export function tanganiUnjuk(s: VillageState, cara: CaraTangani): string {
     return `Tuntutan dipenuhi (Rp ${Math.round(biaya / JT)} jt). Massa bubar sambil bertepuk tangan.`;
   }
   if (cara === 'polisi') {
+    const rel = relasiAparat(s, 'kapolsek');
+    if (rel < 20) throw new GameError(`Kapolsek ${namaTokoh(s, 'kapolsek')} menolak mengirim anggota: hubunganmu dengannya sedang buruk.`);
     arus(s, 'Keputusan & kejadian', -3 * JT); // konsumsi dan uang lelah aparat
     s.kepuasan[g] = clamp(s.kepuasan[g] - 6);
     s.popularitas = clamp(s.popularitas - 2);
     s.integritas = clamp(s.integritas - 1);
-    if (r < 0.2) {
+    if (r < Math.max(0.03, 0.3 - rel / 250)) {
       s.popularitas = clamp(s.popularitas - 6);
       s.politik.kecurigaan = clamp(s.politik.kecurigaan + 3);
       selesai('polisi', 2);
@@ -222,11 +225,13 @@ export function tanganiUnjuk(s: VillageState, cara: CaraTangani): string {
     return 'Polisi datang dan meminta massa membubarkan diri. Aksi bubar, tapi warga pulang dengan kesal.';
   }
   if (cara === 'tentara') {
+    const rel = relasiAparat(s, 'danramil');
+    if (rel < 20) throw new GameError(`Danramil ${namaTokoh(s, 'danramil')} menolak mengerahkan pasukan: hubunganmu dengannya sedang buruk.`);
     s.kepuasan[g] = clamp(s.kepuasan[g] - 10);
     for (const k of Object.keys(s.kepuasan) as GroupId[]) s.kepuasan[k] = clamp(s.kepuasan[k] - 2);
     s.popularitas = clamp(s.popularitas - 5);
     s.integritas = clamp(s.integritas - 3);
-    if (r < 0.35) {
+    if (r < Math.max(0.1, 0.45 - rel / 250)) {
       s.politik.kecurigaan = clamp(s.politik.kecurigaan + 6);
       selesai('tentara', 2);
       return 'Truk tentara masuk desa dan massa langsung bubar. Fotonya viral: "Kades kerahkan tentara hadapi warga sendiri."';
