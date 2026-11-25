@@ -1,5 +1,6 @@
 // Mekanik "desa hidup": koin retribusi, aspirasi, XP & level, misi, pencapaian, pegawai, dekorasi, upgrade.
 import { migrasiJabatan } from './jabatan.ts';
+import { faktorKoinUnjuk } from './unjuk.ts';
 import { MEGA, biayaMega, bonusMega } from './mega.ts';
 import { DUSUN } from './dusun.ts';
 import { migrasiKeluarga } from './politik.ts';
@@ -164,9 +165,12 @@ export function lajuKoin(s: VillageState): Record<string, number> {
 }
 
 export function hariKoin(s: VillageState): void {
+  // mogok perangkat atau blokade jalan menahan iuran dan retribusi
+  const f = faktorKoinUnjuk(s);
   for (const [sumber, per] of Object.entries(lajuKoin(s))) {
     const batas = per * FITUR.batasKoinHari;
-    s.koin[sumber] = Math.min(batas, (s.koin[sumber] ?? 0) + per);
+    const n = per * (sumber.startsWith('rumah:') ? f.rumah : f.usaha);
+    s.koin[sumber] = Math.min(batas, (s.koin[sumber] ?? 0) + n);
   }
 }
 

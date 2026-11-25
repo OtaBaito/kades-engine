@@ -12,6 +12,8 @@ import { bukaDusun } from './dusun.ts';
 import { harianMega, mulaiMega } from './mega.ts';
 import { angkatKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
+import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
+import { harianUnjuk, tanganiUnjuk } from './unjuk.ts';
 import { efekRekananProyek, kontrakRekanan, maksProyek } from './rekanan.ts';
 import { berhentikanStaf, cariKandidat, efekKeStaf, isiTokohStaf, pegawaiKeluar, segarkanKandidat, upgradeKantor } from './kepegawaian.ts';
 import { tebakGender,
@@ -250,8 +252,10 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
   // SiLPA: anggaran tahun lalu tidak terserap, kabupaten memotong termin pertama tahun berikutnya
   if (bulan === 1 && state.hari >= RULES.hariPerBulan * RULES.bulanPerPeriode) {
     const batas = batasSilpa(state);
-    if (state.kas > batas) {
-      const potong = state.kas > batas * 2 ? 0.5 : 0.25;
+    // titipan pajak bukan uang desa, jadi tidak dihitung sebagai sisa anggaran
+    const kas = kasBersih(state);
+    if (kas > batas) {
+      const potong = kas > batas * 2 ? 0.5 : 0.25;
       jumlah = Math.round(jumlah * (1 - potong));
       log(state, events, 'buruk', `Sisa anggaran (SiLPA) tahun lalu terlalu besar. Kabupaten memotong termin pertama ${potong * 100}% karena dana desa dianggap tidak terserap.`);
     }
@@ -324,6 +328,13 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
     log(state, events, j, t);
     if (j === 'baik' && t.includes('DIRESMIKAN')) tambahXp(state, FITUR.xp.proyekSelesai * 4, (jj, tt) => log(state, events, jj, tt));
   });
+  // aksi massa: demo, mogok, blokade
+  harianUnjuk(state, (j, t) => log(state, events, j, t));
+  // penanda untuk kartu yang hanya muncul selama ada pembangunan (mis. ormas minta uang keamanan)
+  const adaProyek = state.proyekBerjalan.length > 0;
+  if (adaProyek !== (state.flags ?? []).includes('proyek_berjalan')) {
+    state.flags = adaProyek ? [...(state.flags ?? []), 'proyek_berjalan'] : (state.flags ?? []).filter((f) => f !== 'proyek_berjalan');
+  }
   // 1. proyek selesai
   for (const aktif of [...state.proyekBerjalan]) {
     if (aktif.selesaiHari > state.hari) continue;
@@ -445,6 +456,7 @@ function closeMonth(state: VillageState, events: LogEntry[]): void {
   addKas(state, -Math.round(perawatan), 'Perawatan bangunan');
   addKas(state, -gajiPegawai(state), 'Honor pegawai');
   tagihCicilan(state, (j, t) => log(state, events, j, t));
+  bulananPajak(state, (j, t) => log(state, events, j, t));
 
   if (state.kas < 0) {
     addAllKepuasan(state, -4);
@@ -658,6 +670,8 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     return { state, events };
   }
   if (action.type === 'promosi_keluarga') return politik(promosiKeluarga(state, action.id, action.cara));
+  if (action.type === 'tangani_unjuk') return politik(tanganiUnjuk(state, action.cara), 'politik');
+  if (action.type === 'pajak') return politik(aturPajak(state, action.aksi), 'info');
   if (action.type === 'investasi') return politik(aturInvestasi(state, action.jenis, action.arah, action.jumlah), 'info');
   if (action.type === 'angkat_keluarga') return politik(angkatKeluarga(state, action.id, action.jabatan));
   if (action.type === 'pilih_penerus') return politik(pilihPenerus(state, action.id));

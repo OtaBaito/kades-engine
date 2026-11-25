@@ -2,6 +2,7 @@
 // dan versi satir yang berisiko: kas desa ditaruh di kripto.
 import { BUMDES } from './content/fitur.ts';
 import { arus } from './arus.ts';
+import { kasBersih } from './pajak.ts';
 import { GameError } from './errors.ts';
 import { lajuKoin, pendapatanBumdes, bonusBumdes } from './fitur.ts';
 import { nextRandom } from './rng.ts';
@@ -113,7 +114,7 @@ export function viewInvestasi(s: VillageState) {
     hasilModalPersen: INVESTASI.hasilModal * 100,
     hasilModalBulanan: Math.round(i.modalBumdes * INVESTASI.hasilModal),
     batasSilpa: batas,
-    kelebihan: Math.max(0, s.kas - batas),
+    kelebihan: Math.max(0, kasBersih(s) - batas),
     /** Perkiraan potongan termin pertama tahun depan kalau kas tetap begini. Kas sendiri tidak diambil. */
     potongan: s.kas > batas * 2 ? Math.round(TERMIN_PERTAMA * 0.5) : s.kas > batas ? Math.round(TERMIN_PERTAMA * 0.25) : 0,
     potonganMaks: Math.round(TERMIN_PERTAMA * 0.5),

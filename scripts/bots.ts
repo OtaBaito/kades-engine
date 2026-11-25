@@ -38,6 +38,16 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
       if (!(err instanceof GameError)) throw err;
     }
   };
+  // aksi massa: jujur menemui atau memenuhi tuntutan, serakah memanggil aparat/ormas, acak sembarang
+  if (s.unjuk && !s.unjuk.penanganan) {
+    const urutan: ('temui' | 'penuhi' | 'polisi' | 'tentara' | 'ormas' | 'biarkan')[] =
+      bot === 'jujur' ? ['temui', 'penuhi', 'polisi'] : bot === 'serakah' ? ['ormas', 'polisi', 'tentara'] : [(['temui', 'penuhi', 'polisi', 'tentara', 'ormas', 'biarkan'] as const)[Math.floor(rand() * 6)]];
+    for (const cara of urutan) {
+      const sebelum: VillageState["unjuk"] = s.unjuk;
+      coba({ type: 'tangani_unjuk', cara });
+      if (s.unjuk?.penanganan || s.unjuk !== sebelum) break;
+    }
+  }
   // rutinitas kecil: tagih, tanggapi aspirasi, klaim misi
   coba({ type: 'tagih' });
   for (const a of buildView(s).aspirasi) if (bot !== 'acak' || rand() < 0.5) coba({ type: 'tanggapi_aspirasi', id: a.id });

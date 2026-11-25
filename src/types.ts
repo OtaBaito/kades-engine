@@ -336,6 +336,11 @@ export interface VillageState {
   jabatanDesa?: Record<string, string>;
   /** Kas yang disimpan di luar rekening kas (tidak dihitung SiLPA). */
   investasi?: { cadangan: number; modalBumdes: number; kripto: number };
+  /** Titipan pajak belanja & PBB (pajak.ts). */
+  pajak?: import('./pajak.ts').StatePajak;
+  /** Aksi massa yang sedang berlangsung (unjuk.ts). */
+  unjuk?: import('./unjuk.ts').StateUnjuk | null;
+  unjukTerakhir?: number;
   dekorasi: string[];
   /** Level tiap unit BUMDes (0 = belum dibangun). */
   bumdes: Record<string, number>;
@@ -405,6 +410,8 @@ export type Action =
   | { type: 'jawab_auditor'; jawaban: string; alasan?: string }
   | { type: 'promosi_keluarga'; id: string; cara: CaraPromosi; alasan?: string }
   | { type: 'angkat_keluarga'; id: string; jabatan: string; alasan?: string }
+  | { type: 'tangani_unjuk'; cara: 'temui' | 'penuhi' | 'polisi' | 'tentara' | 'ormas' | 'biarkan'; alasan?: string }
+  | { type: 'pajak'; aksi: 'setor' | 'otomatis_nyala' | 'otomatis_mati' | 'pbb_normal' | 'pbb_gencar' | 'pbb_ringan'; alasan?: string }
   | { type: 'investasi'; jenis: 'cadangan' | 'modal_bumdes' | 'kripto'; arah: 'simpan' | 'tarik'; jumlah: number; alasan?: string }
   | { type: 'pilih_penerus'; id: string; alasan?: string }
   | { type: 'pilih_calon'; calon: PilihanCalon; alasan?: string }

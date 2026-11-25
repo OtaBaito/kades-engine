@@ -1,4 +1,6 @@
 // Tampilan state untuk UI dan MCP. Risiko tersembunyi tidak pernah ikut.
+import { kasBersih, viewPajak } from './pajak.ts';
+import { viewUnjuk } from './unjuk.ts';
 import { maksProyek, viewRekanan } from './rekanan.ts';
 import { viewSidang } from './sidang.ts';
 import { labelPeran } from './politik.ts';
@@ -223,6 +225,8 @@ export function buildView(state: VillageState) {
     dusun: viewDusun(state),
     mega: viewMega(state),
     investasi: viewInvestasi(state),
+    pajak: viewPajak(state),
+    unjuk: viewUnjuk(state),
     programWajib: {
       belum: PROJECTS.filter((p) => p.wajib && !isBuilt(state, p.id)).map((p) => ({ id: p.id, nama: p.nama, dikerjakan: isRunning(state, p.id) })),
       tertahan: state.danaTertahan ?? 0,
@@ -517,8 +521,13 @@ function tujuanBerikut(state: VillageState): { teks: string; progres: number; ta
   // peringatan SiLPA mengalahkan tujuan lain: kas menumpuk menjelang tutup tahun bisa memotong dana desa
   const bulan = Math.floor((state.hari % HARI_PER_PERIODE) / RULES.hariPerBulan) + 1;
   const batas = batasSilpa(state);
-  if (bulan >= 9 && state.kas > batas) {
-    return { teks: `Kas menganggur ${formatRupiah(state.kas - batas)}: bangun sesuatu`, progres: Math.min(0.99, batas / state.kas), tab: 'keuangan' };
+  const pj = state.pajak;
+  if (pj && pj.tunggakanBulan > 0 && pj.titipan > 0) {
+    return { teks: `Titipan pajak ${formatRupiah(pj.titipan)} menunggak ${pj.tunggakanBulan} bln: setor sekarang`, progres: 0.1, tab: 'keuangan' };
+  }
+  const kasDesa = kasBersih(state);
+  if (bulan >= 9 && kasDesa > batas) {
+    return { teks: `Kas menganggur ${formatRupiah(kasDesa - batas)}: bangun sesuatu`, progres: Math.min(0.99, batas / kasDesa), tab: 'keuangan' };
   }
   // program wajib pusat lebih dulu: dana desa ditahan sampai berdiri
   const wajibBelum = PROJECTS.filter((x) => x.wajib && !isBuilt(state, x.id) && !isRunning(state, x.id));
