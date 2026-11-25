@@ -308,3 +308,50 @@ test('offline: waktu berhenti saat ada audit atau mosi, supaya pemain tidak dita
   const online = advance(s, 60).state;
   assert.ok(online.hari > hari);
 });
+
+test('pegawai: tidak ada pelamar dengan sifat bertabrakan atau dua orang senama', async () => {
+  const { sifatBertentangan } = await import('../src/kepegawaian.ts');
+  assert.ok(sifatBertentangan('sarjana', 'mahal'), 'sarjana dan minta gaji tinggi sama-sama mengatur gaji');
+  assert.ok(sifatBertentangan('hemat', 'sarjana'));
+  assert.ok(sifatBertentangan('pemalas', 'sering_izin'));
+  for (const seed of ['n1', 'n2', 'n3', 'n4', 'n5', 'n6']) {
+    let s = baru(seed);
+    for (let bln = 0; bln < 14; bln++) {
+      s = advance(s, 30).state;
+      if (s.status !== 'menjabat') break;
+      const kandidat = Object.values(s.kandidat ?? {}).flat();
+      for (const k of kandidat)
+        for (let i = 0; i < k.sifat.length; i++)
+          for (let j = i + 1; j < k.sifat.length; j++) assert.ok(!sifatBertentangan(k.sifat[i], k.sifat[j]), `${k.nama}: ${k.sifat.join(', ')}`);
+      const inti = (n: string) => n.split(' ').slice(1).join(' ');
+      const nama = [...kandidat.map((k) => inti(k.nama)), ...(s.staf ?? []).map((x) => inti(x.nama))];
+      assert.equal(new Set(nama).size, nama.length, `nama ganda: ${nama.join(', ')}`);
+      const keluarga = new Set(s.politik.keluarga.map((k) => k.nama));
+      assert.ok(!nama.some((n) => keluarga.has(n)), 'pegawai senama dengan keluarga kades');
+    }
+  }
+});
+
+test('tabrakan antar-sistem: perdes menutup tambang, melindungi sawah dari pabrik', () => {
+  let s = baru('perdes-pt');
+  s.relasi = undefined;
+  s = applyAction(s, { type: 'bpd', aksi: 'rapat_terbuka' }).state;
+  s.relasi!.bpd = 100;
+  s.usaha = { daftar: [{ id: 'tambang', kapling: 0, status: 'beroperasi', mulaiHari: 0, selesaiHari: 1 }], tawaran: { id: 'garmen', hari: s.hari, batasHari: s.hari + 20 }, tawaranBerikut: 9999, jeda: {} };
+  // larangan tambang menutup tambang yang sudah beroperasi
+  for (let i = 0; i < 5 && !s.relasi!.perdes.includes('larangan_tambang'); i++) {
+    s.relasi!.jeda.perdes = 0;
+    s.relasi!.bpd = 100;
+    s = applyAction(s, { type: 'perdes', id: 'larangan_tambang', aksi: 'usul' }).state;
+  }
+  assert.ok(s.relasi!.perdes.includes('larangan_tambang'));
+  assert.ok(!s.usaha!.daftar.some((u) => u.id === 'tambang'), 'tambang ditutup');
+  // perlindungan sawah memblokir pabrik garmen
+  for (let i = 0; i < 5 && !s.relasi!.perdes.includes('perlindungan_sawah'); i++) {
+    s.relasi!.jeda.perdes = 0;
+    s.relasi!.bpd = 100;
+    s = applyAction(s, { type: 'perdes', id: 'perlindungan_sawah', aksi: 'usul' }).state;
+  }
+  s.kas = 1_000_000_000;
+  assert.throws(() => applyAction(s, { type: 'usaha', id: 'garmen', aksi: 'setujui' }), GameError);
+});

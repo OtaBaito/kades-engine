@@ -13,7 +13,7 @@ import { bantuMosi } from './tugas.ts';
 import { arus } from './arus.ts';
 import { GameError } from './errors.ts';
 import { nextRandom } from './rng.ts';
-import { bonusPerdes } from './usaha.ts';
+import { bonusPerdes, tegakkanPerdes } from './usaha.ts';
 import { beritaDesa } from './berita.ts';
 import type { GroupId, IndexId, VillageState } from './types.ts';
 
@@ -107,7 +107,7 @@ export const PERDES: PerdesDef[] = [
     nama: 'Perdes Perlindungan Lahan Sawah',
     teks: 'Sawah produktif tidak boleh dialihfungsikan jadi perumahan atau gudang.',
     plus: ['Petani +0,5 tiap bulan', 'Indeks lingkungan naik pelan'],
-    minus: ['Bupati -8 (investor perumahan batal)'],
+    minus: ['Bupati -8 (investor perumahan batal)', 'Pabrik yang butuh lahan sawah tidak bisa diizinkan'],
     saatSah: { relasi: { bupati: -8 } },
     bulanan: { kepuasan: { petani: 0.5 }, indeks: { lingkungan: 0.2 } },
   },
@@ -150,7 +150,7 @@ export const PERDES: PerdesDef[] = [
     nama: 'Perdes Larangan Tambang Pasir',
     teks: 'Penambangan pasir di sungai desa dilarang total.',
     plus: ['Indeks lingkungan naik', 'Petani +0,3 tiap bulan', 'Popularitas +3'],
-    minus: ['Bupati -10 dan gubernur -6 (izin tambang batal)'],
+    minus: ['Bupati -10 dan gubernur -6 (izin tambang batal)', 'Tambang yang sudah beroperasi ikut ditutup'],
     saatSah: { popularitas: 3, relasi: { bupati: -10, gubernur: -6 } },
     bulanan: { kepuasan: { petani: 0.3 }, indeks: { lingkungan: 0.3 } },
   },
@@ -190,7 +190,7 @@ export const LATAR_WAKIL: Record<LatarWakil, LatarWakilDef> = {
   },
   keponakan_bupati: {
     nama: 'Keponakan bupati',
-    plus: ['Bupati +15', 'Camat +10'],
+    plus: ['Bupati +15', 'Camat +10 (selama bupatinya tidak berganti)'],
     minus: ['Integritas -4 (nepotisme)', 'Warga -0,2 tiap bulan'],
     saatMasuk: { integritas: -4, relasi: { bupati: 15, camat: 10 } },
     bulanan: { kepuasan: { petani: -0.2, pedagang: -0.2, pemuda: -0.2 } },
@@ -243,7 +243,7 @@ export const LATAR_WAKIL: Record<LatarWakil, LatarWakilDef> = {
 };
 
 const NAMA_WAKIL = {
-  l: ['Pak Darto', 'Mas Yogi', 'Pak Sarwono', 'Kang Ujang', 'Mas Bowo', 'Pak Rusdi', 'Mas Aris', 'Pak Tarno', 'Kang Asep', 'Mas Dimas'],
+  l: ['Pak Darto', 'Mas Yogi', 'Pak Sarwono', 'Kang Ujang', 'Mas Bowo', 'Pak Rusdi', 'Mas Aris', 'Pak Tarno', 'Kang Asep', 'Mas Gilang'],
   p: ['Bu Warsini', 'Mbak Ningrum', 'Bu Kartini', 'Teh Euis', 'Mbak Sekar', 'Bu Murni', 'Mbak Laras', 'Bu Yati'],
 };
 
@@ -554,7 +554,8 @@ export function aturPerdes(s: VillageState, id: string, aksi: 'usul' | 'cabut'):
   if (nextRandom(s) < peluangPerdes(s)) {
     r.perdes.push(id);
     terapkan(s, r, def.saatSah);
-    return `BPD menyetujui ${def.nama}. Perdes langsung berlaku.`;
+    const tutup = tegakkanPerdes(s, id);
+    return `BPD menyetujui ${def.nama}. Perdes langsung berlaku.${tutup ? ` ${tutup} harus berhenti beroperasi (relasi bupati turun, pekerja dirumahkan).` : ''}`;
   }
   r.bpd = clamp(r.bpd - 3);
   return `BPD menolak ${def.nama}. Rapat paripurna berakhir dengan walk out. (BPD -3)`;
@@ -769,6 +770,12 @@ function selesaiPemilihan(s: VillageState, r: StateRelasi, catat: Catat) {
     p.jenis === 'presiden' ? 'nasional' : 'daerah',
     p.jenis === 'presiden' ? 'Kabar Nusantara' : 'Warta Kabupaten',
   );
+  // wakil keponakan bupati lama kehilangan "nilai jual"-nya, dan bupati baru curiga
+  if (id === 'bupati' && pemenang.nama !== lama && r.wakil?.latar === 'keponakan_bupati') {
+    r.tokoh.bupati.relasi = clamp(r.tokoh.bupati.relasi - 10);
+    r.wakil.loyalitas = clamp(r.wakil.loyalitas - 10);
+    catat('buruk', `Wakil kades ${r.wakil.nama} adalah keponakan bupati lama. Bupati baru menganggap desamu "orangnya rezim lama". (relasi bupati -10)`);
+  }
   // bupati baru merotasi camat
   if (id === 'bupati' && pemenang.nama !== lama) {
     r.tokoh.camat = { nama: pilihAcak(s, NAMA.camat.filter((n) => n !== r.tokoh.camat.nama)), kubu: 'ditunjuk bupati', relasi: clamp(30 + relasiBaru * 0.5), sejakHari: s.hari };

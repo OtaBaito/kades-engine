@@ -68,8 +68,37 @@ const KONFLIK: [string, string][] = [
   ['titipan', 'kerabat'],
 ];
 
+/**
+ * Aspek yang diatur sifat. Satu orang hanya boleh punya satu sifat per aspek, supaya tidak ada kombinasi
+ * yang saling tabrakan atau menumpuk (mis. "lulusan sarjana" + "minta gaji tinggi" sama-sama mengatur gaji).
+ */
+const ASPEK: Record<string, string> = {
+  rajin: 'etos',
+  pemalas: 'etos',
+  sering_izin: 'etos',
+  sarjana: 'gaji',
+  hemat: 'gaji',
+  mahal: 'gaji',
+  jujur: 'kejujuran',
+  main_proyek: 'kejujuran',
+  disukai: 'pergaulan',
+  penggosip: 'pergaulan',
+  titipan: 'koneksi',
+  kerabat: 'koneksi',
+  digital: 'keahlian',
+};
+
 export function sifatBertentangan(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (ASPEK[a] && ASPEK[a] === ASPEK[b]) return true;
   return KONFLIK.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+}
+
+/** Buang sifat yang bertabrakan dengan sifat sebelumnya (dipakai untuk merapikan data lama). */
+export function rapikanSifat(sifat: string[]): string[] {
+  const hasil: string[] = [];
+  for (const k of sifat) if (!hasil.some((a) => sifatBertentangan(a, k))) hasil.push(k);
+  return hasil;
 }
 
 export function adaKonflik(sifat: string[]): boolean {
@@ -102,10 +131,15 @@ function hitungKinerja(sifat: string[]): number {
   return Math.max(0.4, Math.round((1 + sifat.reduce((t, k) => t + (SIFAT[k]?.kinerja ?? 0), 0)) * 100) / 100);
 }
 
-/** Nama yang sudah dipakai pegawai atau pelamar mana pun, supaya tidak ada dua orang senama. */
+/** Nama yang sudah dipakai pegawai, pelamar, keluarga kades, atau wakil, supaya tidak ada dua orang senama. */
 function namaTerpakai(s: VillageState): Set<string> {
   const inti = (n: string) => n.split(' ').slice(1).join(' ');
-  return new Set([...(s.staf ?? []).map((x) => inti(x.nama)), ...Object.values(s.kandidat ?? {}).flat().map((k) => inti(k.nama))]);
+  return new Set([
+    ...(s.staf ?? []).map((x) => inti(x.nama)),
+    ...Object.values(s.kandidat ?? {}).flat().map((k) => inti(k.nama)),
+    ...(s.politik?.keluarga ?? []).map((k) => k.nama),
+    ...[s.relasi?.wakil, ...(s.relasi?.kandidatWakil ?? [])].filter(Boolean).map((w) => inti(w!.nama)),
+  ]);
 }
 
 function namaUnik(s: VillageState, peran: string, dipakai: Set<string>): string {
@@ -299,6 +333,14 @@ function namaJanggal(nama: string, peran: string): boolean {
 export function migrasiStaf(s: VillageState): void {
   if (s.staf) {
     s.kantorLevel ??= 1;
+    // pegawai lama yang terlanjur punya sifat bertabrakan: sisakan yang pertama, hitung ulang kinerja & gaji
+    for (const x of s.staf) {
+      if (!adaKonflik(x.sifat)) continue;
+      x.sifat = rapikanSifat(x.sifat);
+      x.kinerja = hitungKinerja(x.sifat);
+      const def = PEGAWAI.find((p) => p.id === x.peran);
+      if (def) x.gaji = Math.round((def.gajiBulanan * x.sifat.reduce((t, k) => t * (SIFAT[k]?.gajiX ?? 1), 1)) / 100_000) * 100_000;
+    }
     // pelamar lama dari versi sebelum aturan sifat & sapaan diperbaiki: buat ulang
     const rusak = Object.values(s.kandidat ?? {})
       .flat()

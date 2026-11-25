@@ -280,7 +280,26 @@ function kaplingKosong(us: StateUsaha): number {
 
 function terblokir(s: VillageState, d: UsahaDef): string | null {
   if (d.diblokir && perdesAktif(s, d.diblokir.perdes)) return d.diblokir.alasan;
+  if (d.lahanSawah && perdesAktif(s, 'perlindungan_sawah')) return 'Pabrik ini butuh lahan sawah, padahal Perdes Perlindungan Lahan Sawah masih berlaku.';
   return null;
+}
+
+/** Perdes baru yang melarang usaha tertentu: PT yang sudah ada ikut ditutup (dipanggil saat perdes disahkan). */
+export function tegakkanPerdes(s: VillageState, perdesId: string): string | null {
+  const us = s.usaha;
+  if (!us) return null;
+  const kena = us.daftar.filter((u) => USAHA_BY_ID.get(u.id)?.diblokir?.perdes === perdesId);
+  if (!kena.length) return null;
+  us.daftar = us.daftar.filter((u) => !kena.includes(u));
+  const rel = stateRelasi(s);
+  for (const u of kena) {
+    const d = USAHA_BY_ID.get(u.id)!;
+    us.jeda[u.id] = s.hari + 720;
+    rel.tokoh.bupati.relasi = clamp(rel.tokoh.bupati.relasi - 6);
+    if (u.status === 'beroperasi') s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 3);
+    beritaDesa(s, `${d.nama} Ditutup Setelah Perdes Baru Disahkan`, `Kegiatan ${d.bidang.toLowerCase()} dihentikan. ${d.tenagaKerja} pekerja dirumahkan, bupati kecewa.`, 'daerah', 'Warta Kabupaten');
+  }
+  return kena.map((u) => USAHA_BY_ID.get(u.id)!.nama).join(', ');
 }
 
 export type AksiUsaha = 'setujui' | 'csr' | 'pelicin' | 'tolak' | 'tutup';
