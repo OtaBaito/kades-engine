@@ -1,0 +1,22 @@
+{
+  "name": "kades-engine",
+  "version": "0.1.0",
+  "description": "Mesin simulasi kepala desa yang deterministik: dana desa, warga, pembangunan, pilkades, dan politik desa. Engine di balik game Asal Warga Senang.",
+  "license": "Apache-2.0",
+  "author": "OtaByte (https://otabyte.net)",
+  "homepage": "https://github.com/OtaBaito/kades-engine#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/OtaBaito/kades-engine.git" },
+  "keywords": ["simulation", "game-engine", "village", "indonesia", "idle", "deterministic", "typescript", "mcp"],
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "sim": "node scripts/simulate.ts 20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}
