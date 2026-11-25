@@ -825,6 +825,10 @@ export function harianRelasi(s: VillageState, catat: Catat): void {
     ubahRelasi(r, 'bupati', -10);
     s.flags = s.flags.filter((f) => f !== 'dimusuhi_bupati');
   }
+  if (s.flags?.includes('restu_camat')) {
+    ubahRelasi(r, 'camat', 10);
+    s.flags = s.flags.filter((f) => f !== 'restu_camat');
+  }
   // pemilihan
   if (r.pemilihan && s.hari >= r.pemilihan.hasilHari) selesaiPemilihan(s, r, catat);
   if (!r.pemilihan) {

@@ -201,10 +201,10 @@ export const CARDS: CardDef[] = [
   {
     "id": "hajatan_jalan",
     "judul": "Hajatan Tutup Jalan Tiga Hari",
-    "teks": "Pak Haji Somad menggelar pesta nikah anaknya dan menutup jalan utama. Pedagang protes, tamu undangan senang.",
+    "teks": "Seorang juragan tanah menggelar pesta nikah anaknya dan menutup jalan utama. Pedagang protes, tamu undangan senang.",
     "kategori": "aduan",
     "bobot": 2,
-    "jedaHari": 45,
+    "jedaHari": 180,
     "opsi": [
       {
         "id": "izinkan",
@@ -487,7 +487,7 @@ export const CARDS: CardDef[] = [
     ],
     "kategori": "politik",
     "bobot": 2,
-    "jedaHari": 50,
+    "jedaHari": 180,
     "opsi": [
       {
         "id": "klarifikasi",
@@ -783,7 +783,7 @@ export const CARDS: CardDef[] = [
   },
   {
     "id": "karang_taruna_dana",
-    "judul": "Karang Taruna Minta Dana",
+    "judul": "Usulan Karang Taruna",
     "teks": "Ketua karang taruna mengajukan dana untuk turnamen voli antar-dusun dan pentas seni.",
     "kategori": "usulan",
     "bobot": 2,

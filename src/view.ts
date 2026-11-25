@@ -69,6 +69,7 @@ export function describeEffect(e: Effect): string[] {
   if (e.kecurigaan) out.push(e.kecurigaan > 0 ? 'Gosip dan kecurigaan naik' : 'Gosip mereda');
   if (e.setFlag?.includes('restu_bupati')) out.push('Relasi bupati +10');
   if (e.setFlag?.includes('dimusuhi_bupati')) out.push('Relasi bupati -10');
+  if (e.setFlag?.includes('restu_camat')) out.push('Relasi camat +10');
   if (e.stafKeluar) out.push('Pegawai ini keluar dari kantor desa');
   if (e.pecatPeran) out.push('Pegawai yang bersangkutan diberhentikan');
   if (e.stafKinerja) out.push(`Kinerja pegawai ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`);
@@ -101,6 +102,7 @@ export function effectDetails(e: Effect): EfekRinci[] {
   if (e.kecurigaan) out.push({ jenis: 'gosip', nilai: e.kecurigaan > 0 ? 1 : -1 });
   if (e.setFlag?.includes('restu_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati +10', nilai: 1 });
   if (e.setFlag?.includes('dimusuhi_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati -10', nilai: -1 });
+  if (e.setFlag?.includes('restu_camat')) out.push({ jenis: 'staf', teks: 'Relasi camat +10', nilai: 1 });
   if (e.stafKeluar) out.push({ jenis: 'staf', teks: 'Keluar', nilai: -1 });
   if (e.stafKinerja) out.push({ jenis: 'staf', teks: `Kinerja ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`, nilai: e.stafKinerja });
   if (e.stafGajiX) out.push({ jenis: 'staf', teks: `Gaji ${e.stafGajiX > 1 ? '+' : '-'}${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`, nilai: 1 - e.stafGajiX });
@@ -302,7 +304,9 @@ export function buildView(state: VillageState) {
         aktif: staf.length > 0,
         minLevel: p.minLevel ?? 1,
         terbuka: (p.minLevel ?? 1) <= state.level,
+        /** Jumlah kursi jabatan ini pada level desa sekarang (maksimal orang yang boleh menjabat). */
         slot: slotPeran(state, p),
+        /** Level desa saat jabatan ini mendapat kursi tambahan (null kalau sudah maksimal). */
         slotBerikut: (p.slotLevel ?? [p.minLevel ?? 1]).find((l) => l > state.level) ?? null,
         kekuatan: Math.round(kekuatanPeran(state, p.id) * 100) / 100,
         staf: staf.map((x) => ({ ...x, sifat: sifat(x.sifat) })),

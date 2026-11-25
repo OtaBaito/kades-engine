@@ -598,7 +598,7 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   if (s.butuhProyek && !isBuilt(state, s.butuhProyek)) return false;
   if (s.tanpaProyek && (isBuilt(state, s.tanpaProyek) || isRunning(state, s.tanpaProyek))) return false;
   if (s.butuhPegawai && !(state.pegawai ?? []).includes(s.butuhPegawai)) return false;
-  if (s.butuhSifat && !(state.staf ?? []).some((x) => x.sifat.includes(s.butuhSifat!))) return false;
+  if (s.butuhSifat && !(state.staf ?? []).some((x) => x.sifat.includes(s.butuhSifat!) && (!s.peranCocok || s.peranCocok.includes(x.peran)))) return false;
   if (s.butuhCorak && !s.butuhCorak.includes(state.tipeDesa ?? 'agraris')) return false;
   if (s.maxRataKepuasan !== undefined) {
     const v = Object.values(state.kepuasan);
@@ -642,7 +642,8 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   const sifat = card.syarat?.butuhSifat;
   const peran = card.syarat?.butuhPegawai;
   // kartu berbasis jabatan: pegawai di jabatan itu yang jadi tokoh cerita
-  const calon = sifat ? state.staf.filter((x) => x.sifat.includes(sifat)) : peran ? state.staf.filter((x) => x.peran === peran && !x.keluargaId) : [];
+  const cocok = card.syarat?.peranCocok;
+  const calon = sifat ? state.staf.filter((x) => x.sifat.includes(sifat) && (!cocok || cocok.includes(x.peran))) : peran ? state.staf.filter((x) => x.peran === peran && !x.keluargaId) : [];
   const stafId = calon.length ? calon[Math.floor(nextRandom(state) * calon.length)].id : undefined;
   state.kotakMasuk.push({ instanceId: `k${state.nomorUrut++}`, cardId: card.id, hariMasuk: state.hari, ...(stafId ? { stafId } : {}) });
   state.riwayatKartu[card.id] = state.hari;
@@ -674,6 +675,8 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   state.politik = buatPolitik(state);
   state.politik.periodePemain = 1;
   state.politik.mulaiHari = state.hari;
+  // urusan pribadi kades lama (ormas yang dibayar, dilaporkan, atau dirangkul) tidak ikut ke kades baru
+  state.flags = state.flags.filter((f) => !f.startsWith('ormas_'));
   // pegawai yang dulu "kerabat" kades lama bukan kerabat kades baru
   for (const x of state.staf ?? []) if (x.sifat.includes('kerabat')) x.sifat = x.sifat.filter((k) => k !== 'kerabat');
   // misi mengikuti bulan berjalan (bulan saat desa tamat sempat terlewat)

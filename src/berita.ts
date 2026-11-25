@@ -407,9 +407,11 @@ export function harianBerita(s: VillageState, catat: Catat): void {
   if (n.pidato && !n.pidato.tanggapan && s.hari - n.pidato.hari > 30) n.pidato.tanggapan = 'diam';
   if (s.hari >= n.pidatoBerikut) {
     const tema: TemaPidato[] = ['efisiensi', 'mbg_kopdes', 'swasembada', 'investasi', 'antikorupsi', 'digital', 'kritik', 'pajak'];
+    // tema pidato berputar: tema yang sudah dipakai menunggu sampai semua tema lain sempat muncul
     const kandidat = tema.filter((t) => s.hari >= (n.jeda[`pidato:${t}`] ?? 0));
-    const pilih = (kandidat.length ? kandidat : tema)[Math.floor(nextRandom(s) * (kandidat.length || tema.length))];
-    n.jeda[`pidato:${pilih}`] = s.hari + 300;
+    const tertua = [...tema].sort((a, b) => (n.jeda[`pidato:${a}`] ?? 0) - (n.jeda[`pidato:${b}`] ?? 0))[0];
+    const pilih = kandidat.length ? kandidat[Math.floor(nextRandom(s) * kandidat.length)] : tertua;
+    n.jeda[`pidato:${pilih}`] = s.hari + 900;
     n.pidato = buatPidato(s, pilih, catat);
     n.pidatoBerikut = s.hari + 90 + Math.floor(nextRandom(s) * 60);
   }

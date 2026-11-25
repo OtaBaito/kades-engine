@@ -75,6 +75,8 @@ export interface CardCondition {
   butuhPegawai?: string;
   /** Kartu hanya muncul kalau ada pegawai dengan sifat ini; pegawai itu jadi tokoh ceritanya. */
   butuhSifat?: string;
+  /** Tokoh pegawai (butuhSifat) hanya dari jabatan ini, supaya ceritanya cocok dengan tugasnya. */
+  peranCocok?: string[];
   /** Bulan dalam tahun game (1-12) saat kartu musiman boleh muncul. */
   bulanTahun?: number[];
   /** Kartu khas corak desa tertentu. */
