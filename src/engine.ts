@@ -302,10 +302,12 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
     state.terjadwal.push({
       hari: state.hari + 30,
       peluang: 1,
-      pesan: 'Dana desa yang sempat ditahan akhirnya cair.',
-      effect: { kas: jumlah },
+      pesan: `Dana desa yang sempat ditahan akhirnya cair: ${formatRupiah(jumlah)}.`,
+      effect: { kas: jumlah, kasDanaDesa: true },
     });
-    log(state, events, 'buruk', 'Pencairan termin dana desa ditahan sementara oleh kabupaten.');
+    const alasan = state.alasanTerminDitahan ?? 'akibat keputusan atau kejadian sebelumnya';
+    state.alasanTerminDitahan = undefined;
+    log(state, events, 'buruk', `Pencairan termin dana desa ${formatRupiah(jumlah)} ditahan kabupaten selama 30 hari: ${alasan}.`);
     return;
   }
   // program wajib pusat: termin ditahan sampai Dapur MBG dan Kopdes berdiri (termin pertama tetap cair)
@@ -600,7 +602,10 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
     const j = state.riwayatKartu[`judul:${card.judul}`];
     if (j !== undefined && state.hari - j < 360) return false;
     const g = state.riwayatKartu[`grup:${card.grup}`];
-    if (g !== undefined && state.hari - g < JEDA_GRUP) return false;
+    if (g !== undefined && state.hari - g < (JEDA_KHUSUS[card.grup] ?? JEDA_GRUP)) return false;
+    // variasi lokasi dari templat dan masalah yang sama (mis. "Angin Kencang Melanda RT 03" lalu "RT 07")
+    const varian = state.riwayatKartu[`varian:${card.id.replace(/_\d+$/, '')}`];
+    if (card.id.startsWith('acak_') && varian !== undefined && state.hari - varian < 360) return false;
     if (state.kotakMasuk.some((k) => k.cardId.startsWith(`acak_${card.grup}_`))) return false;
   }
   if (s.minHari !== undefined && state.hari < s.minHari + (state.geserHari?.[card.id] ?? 0)) return false;
@@ -618,6 +623,9 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   if (s.butuhSifat && !(state.staf ?? []).some((x) => x.sifat.includes(s.butuhSifat!) && (!s.peranCocok || s.peranCocok.includes(x.peran)))) return false;
   if (s.butuhCorak && !s.butuhCorak.includes(state.tipeDesa ?? 'agraris')) return false;
   if (s.tanpaPerdes && (state.relasi?.perdes ?? []).includes(s.tanpaPerdes)) return false;
+  if (s.butuhProyekBerjalan && !state.proyekBerjalan.some((p) => !p.upgradeKe)) return false;
+  if (s.satuPegawai && (state.staf ?? []).filter((x) => x.peran === s.satuPegawai).length !== 1) return false;
+  if ((s.butuhPegawai || s.butuhSifat) && calonTokoh(state, card).length === 0 && (s.tokohTanpaSifat || card.opsi.some((o) => o.effect.stafTambahSifat))) return false;
   if (s.maxRataKepuasan !== undefined) {
     const v = Object.values(state.kepuasan);
     if (v.reduce((t, x) => t + x, 0) / Math.max(1, v.length) >= s.maxRataKepuasan) return false;
@@ -637,8 +645,18 @@ export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label
   if (sebutAngka.test(card.teks) || sebutAngka.test(opsi.label) || card.opsi.some((o) => sebutAngka.test(o.label))) return 1;
   // desa besar dengan kas tipis (mis. baru diteruskan kades baru) tidak langsung dibebani biaya besar
   const menurutLevel = 1 + 0.15 * Math.max(0, (state.level ?? 1) - 1);
-  const menurutKas = Math.max(1, state.kas / (150 * 1_000_000));
-  return Math.min(menurutLevel, menurutKas);
+  // pakai rata-rata pemasukan 3 bulan terakhir, bukan kas saat ini, supaya biaya tidak bisa "diakali"
+  // dengan menunda kartu sampai kas kosong
+  const lap = (state.laporan ?? []).slice(-3);
+  const rataMasuk = lap.length ? lap.reduce((t, l) => t + (l.pemasukan ?? 0), 0) / lap.length : 0;
+  const menurutPendapatan = Math.max(1, rataMasuk / (100 * 1_000_000));
+  return Math.min(menurutLevel, menurutPendapatan);
+}
+
+/** Kartu kampanye: biayanya uang pribadi calon, bukan kas desa. */
+export function efekKampanye<E extends { kas?: number; dompet?: number }>(card: CardDef, e: E): E {
+  if (card.kategori !== 'kampanye' || !e.kas || e.kas > 0) return e;
+  return { ...e, kas: undefined, dompet: (e.dompet ?? 0) + e.kas };
 }
 
 export function efekKartuBerskala<E extends { kas?: number }>(e: E, f: number): E {
@@ -646,6 +664,29 @@ export function efekKartuBerskala<E extends { kas?: number }>(e: E, f: number): 
   if (f === 1 || !e.kas || e.kas > 0) return e;
   return { ...e, kas: Math.round((e.kas * f) / 100_000) * 100_000 };
 }
+
+/**
+ * Pegawai yang cocok jadi tokoh kartu: punya sifat yang diminta (atau memegang jabatan yang diminta),
+ * jabatannya cocok, tidak punya sifat yang dilarang, dan belum punya sifat yang akan diberikan kartu.
+ */
+function calonTokoh(state: VillageState, card: CardDef) {
+  const s = card.syarat ?? {};
+  const tambah = card.opsi.map((o) => o.effect.stafTambahSifat).filter(Boolean) as string[];
+  return (state.staf ?? []).filter((x) => {
+    if (s.butuhSifat) {
+      if (!x.sifat.includes(s.butuhSifat)) return false;
+      if (s.peranCocok && !s.peranCocok.includes(x.peran)) return false;
+    } else if (s.butuhPegawai) {
+      if (x.peran !== s.butuhPegawai || x.keluargaId) return false;
+    } else return false;
+    if (s.tokohTanpaSifat && x.sifat.includes(s.tokohTanpaSifat)) return false;
+    if (tambah.length && tambah.every((t) => x.sifat.includes(t))) return false;
+    return true;
+  });
+}
+
+/** Kartu sejenis berbagi jeda (variasi templat acak, atau kelompok cerita yang mirip seperti skandal kas). */
+const JEDA_KHUSUS: Record<string, number> = { skandal_kas: 360 };
 
 /** Jeda antar kartu sejenis (variasi templat yang sama), supaya cerita yang mirip tidak beruntun. */
 const JEDA_GRUP = 90;
@@ -657,21 +698,18 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (!awal && kandidat.length < 5 && nextRandom(state) > kandidat.length / 5) return;
   const card = pickWeighted(state, kandidat, (c) => c.bobot);
   if (!card) return;
-  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(card.jedaHari * (1 + 0.5 * nextRandom(state)));
+  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(Math.max(card.jedaHari, card.syarat?.bulanTahun ? 0 : 240) * (1 + 0.5 * nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita
-  const sifat = card.syarat?.butuhSifat;
-  const peran = card.syarat?.butuhPegawai;
-  // kartu berbasis jabatan: pegawai di jabatan itu yang jadi tokoh cerita
-  const cocok = card.syarat?.peranCocok;
-  const calon = sifat ? state.staf.filter((x) => x.sifat.includes(sifat) && (!cocok || cocok.includes(x.peran))) : peran ? state.staf.filter((x) => x.peran === peran && !x.keluargaId) : [];
+  const calon = calonTokoh(state, card);
   const stafId = calon.length ? calon[Math.floor(nextRandom(state) * calon.length)].id : undefined;
   state.kotakMasuk.push({ instanceId: `k${state.nomorUrut++}`, cardId: card.id, hariMasuk: state.hari, ...(stafId ? { stafId } : {}) });
   state.riwayatKartu[card.id] = state.hari;
   if (card.grup) {
     state.riwayatKartu[`grup:${card.grup}`] = state.hari;
     state.riwayatKartu[`judul:${card.judul}`] = state.hari;
+    if (card.id.startsWith('acak_')) state.riwayatKartu[`varian:${card.id.replace(/_\d+$/, '')}`] = state.hari;
   }
-  log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, card.judul)}.`);
+  log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, judulKartu(state, card))}.`);
 }
 
 // ---------------------------------------------------------------- aksi
@@ -917,14 +955,17 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     const tersedia = card ? opsiTersedia(state, card) : [];
     const opsi = tersedia.find((o) => o.id === action.opsiId);
     if (!card || !opsi) throw new GameError('Opsi keputusan tidak valid.');
-    const efek = efekKartuBerskala(opsi.effect, skalaUangKartu(state, card, opsi));
+    const efek = efekKampanye(card, efekKartuBerskala(opsi.effect, skalaUangKartu(state, card, opsi)));
+    if (card.kategori === 'kampanye' && (efek.dompet ?? 0) < 0 && state.politik.dompet < -(efek.dompet ?? 0)) {
+      throw new GameError(`Uang pribadimu kurang untuk biaya kampanye ini. Butuh ${formatRupiah(-(efek.dompet ?? 0))}.`);
+    }
     const biaya = Math.max(0, -(efek.kas ?? 0));
     const biayaTermurah = Math.min(...tersedia.map((o) => Math.max(0, -(efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)).kas ?? 0))));
     if (biaya > biayaTermurah && state.kas < biaya) {
       throw new GameError(`Kas tidak cukup untuk opsi ini. Butuh ${formatRupiah(biaya)}.`);
     }
     // isi nama pegawai tokoh sebelum efek (pegawainya bisa saja dipecat)
-    const judulIsi = isiTokohStaf(state, pending.stafId, card.judul);
+    const judulIsi = isiTokohStaf(state, pending.stafId, judulKartu(state, card));
     const labelIsi = isiTokohStaf(state, pending.stafId, opsi.label);
     applyEffect(state, efek);
     efekKeStaf(state, pending.stafId, efek);
@@ -978,7 +1019,7 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
 // ---------------------------------------------------------------- efek & util
 
 export function applyEffect(state: VillageState, e: Effect): void {
-  if (e.kas) addKas(state, e.kas);
+  if (e.kas) addKas(state, e.kas, e.kasDanaDesa ? 'Dana desa' : 'Keputusan & kejadian');
   if (e.pecatPeran) {
     const x = (state.staf ?? []).find((st) => st.peran === e.pecatPeran && !st.keluargaId);
     if (x) {

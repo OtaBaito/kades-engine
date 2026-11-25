@@ -33,6 +33,7 @@ import {
   isRunning,
   opsiTersedia,
   judulKartu,
+  efekKampanye,
   efekKartuBerskala,
   skalaUangKartu,
   skorDesa,
@@ -181,7 +182,7 @@ export function buildView(state: VillageState) {
         /** Pegawai yang jadi tokoh kartu (kalau ada): dipakai UI sebagai pembawa kartu. */
         tokohStaf: staf ? { nama: staf.nama, peran: PEGAWAI.find((p) => p.id === staf.peran)?.peran ?? staf.peran, sifat: staf.sifat.map((x) => SIFAT[x]?.nama ?? x) } : null,
         opsi: opsiTersedia(state, card).map((o) => {
-          const e = efekKartuBerskala(o.effect, skalaUangKartu(state, card, o));
+          const e = efekKampanye(card, efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)));
           const efek = describeEffect(e);
           return { id: o.id, label: isi(o.label), efek: efek.length ? efek : ['Tidak ada efek langsung'], rinci: effectDetails(e) };
         }),

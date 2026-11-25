@@ -179,6 +179,7 @@ export function tagihCicilan(s: VillageState, catat: Catat): void {
     // bank yang ditunggak tiga kali menahan pencairan dana desa berikutnya
     if (k.jenis === 'bank' && p.telat >= 3 && !s.flags.includes('termin_ditahan')) {
       s.flags.push('termin_ditahan');
+      s.alasanTerminDitahan = 'cicilan bank menunggak tiga bulan';
       catat('buruk', 'Rekening desa dibekukan sementara karena tunggakan bank.');
     }
   }

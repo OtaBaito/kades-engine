@@ -35,6 +35,8 @@ export interface Effect {
   stafKeluar?: boolean;
   /** Pegawai pertama di jabatan ini keluar dari kantor (cerita yang tidak punya tokoh pegawai tertentu). */
   pecatPeran?: string;
+  /** Uang kas efek ini dicatat sebagai pos Dana desa (mis. termin yang sempat ditahan akhirnya cair). */
+  kasDanaDesa?: boolean;
   stafKinerja?: number;
   stafGajiX?: number;
   stafTambahSifat?: string;
@@ -85,6 +87,12 @@ export interface CardCondition {
   maxRataKepuasan?: number;
   /** Kartu tidak muncul selama perdes ini berlaku (mis. jual tanah kas desa saat perlindungan sawah). */
   tanpaPerdes?: string;
+  /** Hanya muncul kalau ada proyek desa yang sedang dibangun. */
+  butuhProyekBerjalan?: boolean;
+  /** Tokoh pegawai (butuhPegawai/butuhSifat) tidak boleh punya sifat ini (mis. bendahara jujur tidak menggelapkan). */
+  tokohTanpaSifat?: string;
+  /** Hanya muncul kalau jabatan ini dipegang tepat satu orang (mis. kader tunggal cuti). */
+  satuPegawai?: string;
 }
 
 export interface CardDef {
@@ -410,6 +418,8 @@ export interface VillageState {
   flags: string[];
   kotakMasuk: PendingCard[];
   riwayatKartu: Record<string, number>;
+  /** Alasan termin dana desa ditahan (untuk jurnal). */
+  alasanTerminDitahan?: string;
   /** Watak pelamar pegawai yang pernah datang (kunci: nama tanpa sapaan), supaya pelamar lama konsisten. */
   pelamarLama?: Record<string, string[]>;
   /** Opsi terakhir yang dipilih per kartu, untuk melanjutkan cerita saat kartu itu muncul lagi. */

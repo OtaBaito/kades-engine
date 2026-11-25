@@ -346,13 +346,16 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
 }
 
 /** Porsi suara satu kelompok untuk calon kita (tanpa unsur acak). */
+/** Porsi suara maksimum satu kelompok: selalu ada warga yang memilih lawan. */
+const BATAS_PORSI = 0.85;
+
 function porsiSuara(s: VillageState, g: GroupId, m: AnggotaKeluarga | undefined, lawanTerkuat: number, bonus: number): number {
   const integritas = ((s.integritas - 50) / 250) * (g === 'tokoh' ? 3 : 1);
   const dasar = m
     ? 0.3 + (s.kepuasan[g] - 50) / 150 + (s.popularitas - 50) / 350 + (m.elektabilitas - 40) / 110 + (m.kompetensi - 50) / 400 + integritas
     : 0.36 + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
   // penantang kuat benar-benar menggerus suara: kades populer pun harus tetap merawat warga di tahun pilkades
-  return dasar + bonus / 100 - (lawanTerkuat - 50) / 110;
+  return dasar + bonus / 100 - (lawanTerkuat - 50) / 80;
 }
 
 /**
@@ -369,7 +372,7 @@ export function surveiElektabilitas(s: VillageState) {
   let suara = 0;
   let total = 0;
   for (const g of GROUPS) {
-    suara += jiwaKelompok(s, g.id) * Math.min(0.95, Math.max(0.05, porsiSuara(s, g.id, m, terkuat, k?.bonusSuara ?? 0)));
+    suara += jiwaKelompok(s, g.id) * Math.min(BATAS_PORSI, Math.max(0.05, porsiSuara(s, g.id, m, terkuat, k?.bonusSuara ?? 0)));
     total += jiwaKelompok(s, g.id);
   }
   const kita = Math.round((suara / total) * 1000) / 10;
@@ -426,7 +429,7 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
   const perKelompok: { kelompok: GroupId; persen: number }[] = [];
   for (const g of GROUPS) {
     const noise = (nextRandom(s) - 0.5) * 0.12;
-    const share = Math.min(0.95, Math.max(0.05, porsiSuara(s, g.id, m, lawanTerkuat, k.bonusSuara) + noise));
+    const share = Math.min(BATAS_PORSI, Math.max(0.05, porsiSuara(s, g.id, m, lawanTerkuat, k.bonusSuara) + noise));
     suara += jiwaKelompok(s, g.id) * share;
     total += jiwaKelompok(s, g.id);
     perKelompok.push({ kelompok: g.id, persen: Math.round(share * 1000) / 10 });

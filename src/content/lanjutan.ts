@@ -353,6 +353,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
   },
   "air_kering": {
     "tangki": {
+      "judul": "Warga Minta Sumur Dalam",
       "teks": "Tangki air sudah tiga kali datang. Warga mulai bertanya kenapa desa tidak bikin sumur dalam saja.",
       "opsi": [
         {
@@ -561,7 +562,10 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
             "pemasukanBulanan": 1000000,
             "indeks": {
               "ekonomi": 1
-            }
+            },
+            "setFlag": [
+              "pemuda_kelola_wisata"
+            ]
           }
         },
         {

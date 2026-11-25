@@ -809,7 +809,7 @@ function selesaiPemilihan(s: VillageState, r: StateRelasi, catat: Catat) {
   }
   // bupati baru merotasi camat
   if (id === 'bupati' && pemenang.nama !== lama) {
-    r.tokoh.camat = { nama: pilihAcak(s, NAMA.camat.filter((n) => n !== r.tokoh.camat.nama)), kubu: 'ditunjuk bupati', relasi: clamp(30 + relasiBaru * 0.5), sejakHari: s.hari };
+    r.tokoh.camat = { nama: pilihAcak(s, NAMA.camat.filter((n) => n !== r.tokoh.camat.nama)), kubu: 'ditunjuk bupati', relasi: clamp(50 + (relasiBaru - 50) * 0.5), sejakHari: s.hari };
     catat('info', `Bupati baru merotasi camat. ${r.tokoh.camat.nama} kini memimpin kecamatan.`);
   }
 }
@@ -933,6 +933,7 @@ export function bulananRelasi(s: VillageState, catat: Catat): void {
   // camat dingin: pengesahan APBDes ditahan
   if (r.tokoh.camat.relasi < 25 && nextRandom(s) < 0.15 && !s.flags.includes('termin_ditahan')) {
     s.flags = [...s.flags, 'termin_ditahan'];
+    s.alasanTerminDitahan = 'camat yang tidak menyukaimu menahan rekomendasi APBDes';
     catat('buruk', `Camat ${r.tokoh.camat.nama} "belum sempat" memeriksa dokumen APBDes. Termin dana desa berikutnya tertahan.`);
   }
 

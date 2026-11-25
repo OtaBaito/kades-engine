@@ -794,6 +794,9 @@ export const CARDS: CardDef[] = [
     "kategori": "usulan",
     "bobot": 2,
     "jedaHari": 50,
+    "syarat": {
+      "tanpaFlag": "pemuda_kelola_wisata"
+    },
     "opsi": [
       {
         "id": "kasih_penuh",
@@ -1639,8 +1642,10 @@ export const CARDS: CardDef[] = [
     "kategori": "politik",
     "bobot": 2,
     "jedaHari": 150,
+    "grup": "skandal_kas",
     "syarat": {
-      "butuhPegawai": "bendahara"
+      "butuhPegawai": "bendahara",
+      "tokohTanpaSifat": "jujur"
     },
     "opsi": [
       {
@@ -2461,6 +2466,7 @@ export const CARDS: CardDef[] = [
     "kategori": "politik",
     "bobot": 1.5,
     "sekali": true,
+    "grup": "skandal_kas",
     "bersambung": true,
     "syarat": {
       "minHari": 40,

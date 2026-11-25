@@ -155,6 +155,7 @@ export function bulananTugas(s: VillageState, catat: Catat): void {
   // Operator Sistem Desa
   if (kosong(s, 'operator') && nextRandom(s) < 0.15 && !s.flags.includes('termin_ditahan')) {
     s.flags = [...s.flags, 'termin_ditahan'];
+    s.alasanTerminDitahan = 'laporan Siskeudes telat karena kursi operator kosong';
     catat('buruk', 'Laporan Siskeudes desa telat diunggah karena tidak ada operator. Termin dana desa berikutnya tertahan.');
   }
 

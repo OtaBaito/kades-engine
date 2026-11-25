@@ -156,7 +156,8 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   if (m.dibayar < total && !m.mangkrak && m.jatuhTempo - s.hari === 5 && m.diingatkan !== m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
     m.diingatkan = m.jatuhTempo;
-    if (s.kas < bayar * 1.15) catat('buruk', `Tagihan tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt) jatuh tempo 5 hari lagi. Kas sekarang ${Math.round(s.kas / JT)} jt: siapkan cadangan untuk gaji dan perawatan juga.`);
+    const bebas = s.kas - (s.pajak?.titipan ?? 0);
+    if (bebas < bayar * 1.15) catat('buruk', `Tagihan tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt) jatuh tempo 5 hari lagi. Kas bebas sekarang ${Math.round(bebas / JT)} jt (di luar titipan pajak): siapkan cadangan untuk gaji dan perawatan juga.`);
   }
   if (m.dibayar < total && s.hari >= m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
