@@ -24,17 +24,17 @@ export interface SifatDef {
 
 export const SIFAT: Record<string, SifatDef> = {
   rajin: { nama: 'Rajin', baik: true, teks: 'Kinerja +30%', kinerja: 0.3 },
-  jujur: { nama: 'Jujur', baik: true, teks: 'Gosip turun tiap bulan', bulanan: { kecurigaan: -1.5 } },
+  jujur: { nama: 'Jujur', baik: true, teks: 'Gosip tentang kades turun tiap bulan', bulanan: { kecurigaan: -1.5 } },
   disukai: { nama: 'Disukai warga', baik: true, teks: 'Popularitas kades naik pelan', bulanan: { popularitas: 0.6 } },
   sarjana: { nama: 'Lulusan sarjana', baik: true, teks: 'Kinerja +20%, gaji +30%', kinerja: 0.2, gajiX: 1.3 },
   digital: { nama: 'Melek digital', baik: true, teks: 'Kinerja +15%', kinerja: 0.15 },
   hemat: { nama: 'Mau digaji kecil', baik: true, teks: 'Gaji -20%', gajiX: 0.8 },
   pemalas: { nama: 'Pemalas', baik: false, teks: 'Kinerja -30%', kinerja: -0.3 },
-  main_proyek: { nama: 'Suka main proyek', baik: false, teks: 'Gosip naik tiap bulan', bulanan: { kecurigaan: 2 } },
+  main_proyek: { nama: 'Suka main proyek', baik: false, teks: 'Gosip tentang kades naik tiap bulan', bulanan: { kecurigaan: 2 } },
   penggosip: { nama: 'Tukang gosip', baik: false, teks: 'Popularitas kades turun pelan', bulanan: { popularitas: -0.5 } },
   sering_izin: { nama: 'Sering izin', baik: false, teks: 'Kinerja -15%', kinerja: -0.15 },
   titipan: { nama: 'Titipan pejabat', baik: false, teks: 'Integritas -2, tapi kabupaten senang', saatMasuk: { integritas: -2, flag: 'restu_bupati' } },
-  kerabat: { nama: 'Kerabat kades', baik: false, teks: 'Integritas -3 (nepotisme), loyal', saatMasuk: { integritas: -3 }, bulanan: { kecurigaan: 0.5 } },
+  kerabat: { nama: 'Kerabat jauh kades', baik: false, teks: 'Integritas -3 saat direkrut (nepotisme), gosip naik pelan tiap bulan', saatMasuk: { integritas: -3 }, bulanan: { kecurigaan: 0.5 } },
   mahal: { nama: 'Minta gaji tinggi', baik: false, teks: 'Gaji +40%', gajiX: 1.4 },
 };
 
@@ -66,7 +66,23 @@ const KONFLIK: [string, string][] = [
   ['sarjana', 'pemalas'],
   ['digital', 'pemalas'],
   ['titipan', 'kerabat'],
+  // orang titipan pejabat tidak cocok disebut jujur, begitu juga kerabat kades
+  ['jujur', 'titipan'],
+  ['jujur', 'kerabat'],
 ];
+
+/** Bobot kemunculan sifat buruk: koneksi (titipan, kerabat) lebih jarang daripada sifat kerja biasa. */
+const BOBOT_BURUK: Record<string, number> = { titipan: 0.5, kerabat: 0.3 };
+
+function pilihBerbobot(s: VillageState, xs: string[]): string {
+  const total = xs.reduce((t, k) => t + (BOBOT_BURUK[k] ?? 1), 0);
+  let r = nextRandom(s) * total;
+  for (const k of xs) {
+    r -= BOBOT_BURUK[k] ?? 1;
+    if (r <= 0) return k;
+  }
+  return xs[xs.length - 1];
+}
 
 /**
  * Aspek yang diatur sifat. Satu orang hanya boleh punya satu sifat per aspek, supaya tidak ada kombinasi
@@ -154,15 +170,22 @@ function namaUnik(s: VillageState, peran: string, dipakai: Set<string>): string 
 
 function buatKandidat(s: VillageState, def: PegawaiDef, dipakai: Set<string> = namaTerpakai(s)): Kandidat {
   // setiap pelamar selalu punya kelebihan dan kekurangan, kadang satu sifat tambahan
-  const sifat: string[] = [pilih(s, SIFAT_BAIK)];
-  const burukCocok = SIFAT_BURUK.filter((b) => !sifat.some((a) => sifatBertentangan(a, b)));
-  sifat.push(pilih(s, burukCocok));
-  if (nextRandom(s) < 0.3) {
-    const sisa = Object.keys(SIFAT).filter((k) => !sifat.includes(k) && !sifat.some((a) => sifatBertentangan(a, k)));
-    if (sisa.length) sifat.push(pilih(s, sisa));
+  const nama = namaUnik(s, def.id, dipakai);
+  const inti = nama.split(' ').slice(1).join(' ');
+  s.pelamarLama ??= {};
+  // pelamar yang pernah datang melamar lagi dengan watak yang sama (orangnya tidak berubah)
+  let sifat: string[] = s.pelamarLama[inti] ? rapikanSifat(s.pelamarLama[inti]) : [];
+  if (!sifat.length) {
+    sifat = [pilih(s, SIFAT_BAIK)];
+    const burukCocok = SIFAT_BURUK.filter((b) => !sifat.some((a) => sifatBertentangan(a, b)));
+    sifat.push(pilihBerbobot(s, burukCocok));
+    if (nextRandom(s) < 0.3) {
+      const sisa = Object.keys(SIFAT).filter((k) => !sifat.includes(k) && !sifat.some((a) => sifatBertentangan(a, k)));
+      if (sisa.length) sifat.push(pilihBerbobot(s, sisa));
+    }
+    s.pelamarLama[inti] = sifat;
   }
   const gajiX = sifat.reduce((t, k) => t * (SIFAT[k]?.gajiX ?? 1), 1);
-  const nama = namaUnik(s, def.id, dipakai);
   return {
     id: `kd${s.nomorUrut++}`,
     peran: def.id,

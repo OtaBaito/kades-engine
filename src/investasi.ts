@@ -4,7 +4,7 @@ import { BUMDES } from './content/fitur.ts';
 import { arus } from './arus.ts';
 import { kasBersih } from './pajak.ts';
 import { GameError } from './errors.ts';
-import { lajuKoin, pendapatanBumdes, bonusBumdes } from './fitur.ts';
+import { lajuKoin, totalPendapatanBumdes } from './fitur.ts';
 import { nextRandom } from './rng.ts';
 import type { VillageState } from './types.ts';
 
@@ -31,7 +31,7 @@ function inv(s: VillageState) {
 /** Pemasukan rutin per bulan (iuran, retribusi, usaha BUMDes), tanpa dana desa. */
 export function pemasukanRutinBulanan(s: VillageState): number {
   const koin = Object.values(lajuKoin(s)).reduce((t, x) => t + x, 0) * 30;
-  const usaha = BUMDES.reduce((t, b) => t + pendapatanBumdes(b, s.bumdes?.[b.id] ?? 0), 0) * (1 + bonusBumdes(s)) * 30;
+  const usaha = totalPendapatanBumdes(s) * 30;
   return Math.round(koin + usaha);
 }
 
@@ -116,7 +116,7 @@ export function viewInvestasi(s: VillageState) {
     batasSilpa: batas,
     kelebihan: Math.max(0, kasBersih(s) - batas),
     /** Perkiraan potongan termin pertama tahun depan kalau kas tetap begini. Kas sendiri tidak diambil. */
-    potongan: s.kas > batas * 2 ? Math.round(TERMIN_PERTAMA * 0.5) : s.kas > batas ? Math.round(TERMIN_PERTAMA * 0.25) : 0,
-    potonganMaks: Math.round(TERMIN_PERTAMA * 0.5),
+    potongan: kasBersih(s) > batas ? Math.round(Math.min(TERMIN_PERTAMA, Math.max(TERMIN_PERTAMA * 0.25, (kasBersih(s) - batas) * 0.5))) : 0,
+    potonganMaks: Math.round(TERMIN_PERTAMA),
   };
 }

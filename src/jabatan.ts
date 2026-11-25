@@ -149,3 +149,11 @@ export function migrasiJabatan(s: VillageState): void {
     }
   }
 }
+
+/** Kembalikan semua jabatan yang dipegang keluarga kades ke warga (dipakai saat desa diteruskan kades baru). */
+export function lepasSemuaJabatanKeluarga(s: VillageState): void {
+  s.jabatanDesa ??= {};
+  for (const [id, h] of Object.entries(s.jabatanDesa)) if (h.startsWith('kel:')) s.jabatanDesa[id] = JABATAN_DESA.find((j) => j.id === id)!.pemegangAwal;
+  s.staf = (s.staf ?? []).filter((x) => !x.keluargaId);
+  syncPegawai(s);
+}

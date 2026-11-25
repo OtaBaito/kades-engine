@@ -18,11 +18,11 @@ import { LANJUTAN } from './content/lanjutan.ts';
 
 const CARDS_JUMLAH = CARDS.length;
 import { KREDIT, cicilanBulanan, limitKredit, sisaLimit, totalUtang } from './kredit.ts';
-import { FITUR, biayaBumdes, bonusBumdes, gajiPegawai, lajuKoin, pendapatanBumdes, progresMisi, xpNaikLevel } from './fitur.ts';
+import { FITUR, biayaBumdes, bonusBumdes, gajiPegawai, kejenuhanBumdes, totalPendapatanBumdes, lajuKoin, pendapatanBumdes, progresMisi, xpNaikLevel } from './fitur.ts';
 import { jiwaKelompok, totalPenduduk } from './penduduk.ts';
 import { HADIAH_HARIAN } from './harian.ts';
 import { KANTOR, SIFAT, infoKantor, isiTokohStaf, kekuatanPeran, slotPeran } from './kepegawaian.ts';
-import { AKSI_GELAP, ASET_PRIBADI, POLITIK, bolehNyalon, gosip, namaPemimpin, nilaiAset, raporWarisan, surveiElektabilitas } from './politik.ts';
+import { AKSI_GELAP, ASET_PRIBADI, BULAN_PANEN_BENGKOK, POLITIK, bolehNyalon, gajiKades, hasilBengkok, siltapKades, tunjanganJabatan, kekuatanEfektif, peluangJagoan, gosip, namaPemimpin, nilaiAset, raporWarisan, surveiElektabilitas } from './politik.ts';
 import {
   HARI_PER_PERIODE,
   RULES,
@@ -32,12 +32,14 @@ import {
   isBuilt,
   isRunning,
   opsiTersedia,
+  efekKartuBerskala,
+  skalaUangKartu,
   skorDesa,
   teksKartu,
   statusDesa,
 } from './engine.ts';
-import { NAMA_PEMILIHAN, viewRelasi } from './relasi.ts';
-import { viewUsaha } from './usaha.ts';
+import { NAMA_PEMILIHAN, arusBulananRelasi, faktorTermin, viewRelasi } from './relasi.ts';
+import { retribusiUsaha, viewUsaha } from './usaha.ts';
 import { viewBerita } from './berita.ts';
 import type { Effect, GroupId, IndexId, VillageState } from './types.ts';
 
@@ -168,12 +170,10 @@ export function buildView(state: VillageState) {
         bersambung: Boolean(card.bersambung),
         /** Pegawai yang jadi tokoh kartu (kalau ada): dipakai UI sebagai pembawa kartu. */
         tokohStaf: staf ? { nama: staf.nama, peran: PEGAWAI.find((p) => p.id === staf.peran)?.peran ?? staf.peran, sifat: staf.sifat.map((x) => SIFAT[x]?.nama ?? x) } : null,
-        opsi: opsiTersedia(state, card).map((o) => ({
-          id: o.id,
-          label: isi(o.label),
-          efek: describeEffect(o.effect),
-          rinci: effectDetails(o.effect),
-        })),
+        opsi: opsiTersedia(state, card).map((o) => {
+          const e = efekKartuBerskala(o.effect, skalaUangKartu(state, card, o));
+          return { id: o.id, label: isi(o.label), efek: describeEffect(e), rinci: effectDetails(e) };
+        }),
       };
     }),
     proyek: PROJECTS.map((p) => {
@@ -333,9 +333,12 @@ export function buildView(state: VillageState) {
         deskripsi: b.deskripsi,
         level,
         maksLevel: b.maksLevel,
-        pendapatanHarian: pendapatanBumdes(b, level),
-        pendapatanBerikut: pendapatanBumdes(b, Math.min(b.maksLevel, level + 1)),
-        biayaBerikut: level >= b.maksLevel ? null : biayaBumdes(b, level),
+        // angka nyata: sudah termasuk bonus manajer dan kejenuhan pasar (level tambahan ikut menjenuhkan pasar)
+        pendapatanHarian: Math.round(pendapatanBumdes(b, level) * (1 + bonusBumdes(state)) * kejenuhanBumdes(state)),
+        pendapatanBerikut: Math.round(
+          pendapatanBumdes(b, Math.min(b.maksLevel, level + 1)) * (1 + bonusBumdes(state)) * kejenuhanBumdes(state, level < b.maksLevel ? 1 : 0),
+        ),
+        biayaBerikut: level >= b.maksLevel ? null : biayaBumdes(b, level, state),
         syaratProyek: b.syaratProyek ?? null,
         namaSyarat: b.syaratProyek ? (PROJECT_BY_ID.get(b.syaratProyek)?.nama ?? b.syaratProyek) : null,
         minLevel: b.minLevel ?? 1,
@@ -343,7 +346,8 @@ export function buildView(state: VillageState) {
         syaratTerpenuhi: !b.syaratProyek || isBuilt(state, b.syaratProyek),
       };
     }),
-    pendapatanPasifHarian: Math.round(BUMDES.reduce((t, b) => t + pendapatanBumdes(b, state.bumdes?.[b.id] ?? 0), 0) * (1 + bonusBumdes(state))),
+    pendapatanPasifHarian: totalPendapatanBumdes(state),
+    kejenuhanBumdes: Math.round(kejenuhanBumdes(state) * 100),
     kredit: KREDIT.map((k) => ({
       id: k.id,
       nama: k.nama,
@@ -390,12 +394,17 @@ function ringkasKeuangan(state: VillageState) {
   const iuran = Object.entries(laju).filter(([k]) => k.startsWith('rumah:')).reduce((t, [, v]) => t + v * 30, 0);
   const dariBangunan = PROJECTS.filter((p) => laju[p.id]).map((p) => ({ pos: p.nama, jumlah: Math.round(laju[p.id] * 30) }));
   const usahaLain = (laju.balai ?? 0) * 30;
-  const bumdes = BUMDES.reduce((t, b) => t + pendapatanBumdes(b, state.bumdes?.[b.id] ?? 0), 0) * 30 * (1 + bonusBumdes(state));
+  const relasiArus = arusBulananRelasi(state);
+  // termin dana desa ikut relasi bupati dan efisiensi pusat yang sedang berlaku (potongan SiLPA hanya di awal tahun)
+  const danaDesa = (RULES.danaDesaTahunan / 12) * faktorTermin(state) * (state.nasional?.efek.efisiensi_termin ? 0.9 : 1);
+  const bumdes = totalPendapatanBumdes(state) * 30;
   const pemasukan = [
-    { pos: 'Dana desa (rata-rata per bulan)', jumlah: Math.round(RULES.danaDesaTahunan / 12) },
+    { pos: 'Dana desa (rata-rata per bulan, belum termasuk potongan SiLPA)', jumlah: Math.round(danaDesa) },
     { pos: 'Iuran & retribusi warga', jumlah: Math.round(iuran) },
     ...dariBangunan,
-    { pos: 'Usaha desa lain (koperasi, wisata, dll.)', jumlah: Math.round(usahaLain) },
+    { pos: 'Retribusi balai desa', jumlah: Math.round(usahaLain) },
+    { pos: 'Retribusi perusahaan (PT)', jumlah: retribusiUsaha(state) },
+    { pos: 'Pemasukan dari perdes', jumlah: relasiArus.masukPerdes },
     { pos: 'Usaha BUMDes', jumlah: Math.round(bumdes) },
   ].filter((x) => x.jumlah > 0);
   const perawatan = state.proyekSelesai.reduce(
@@ -410,6 +419,8 @@ function ringkasKeuangan(state: VillageState) {
     { pos: 'Honor pegawai', jumlah: gajiPegawai(state) },
     { pos: 'Cicilan utang', jumlah: cicilan },
     { pos: 'Tunjangan kades', jumlah: state.politik?.tunjangan ? POLITIK.tunjanganKades : 0 },
+    { pos: 'Tunjangan wakil kades', jumlah: relasiArus.wakil },
+    { pos: 'Subsidi program perdes', jumlah: relasiArus.keluarPerdes },
   ].filter((x) => x.jumlah > 0);
   const totalMasuk = pemasukan.reduce((t, x) => t + x.jumlah, 0);
   const totalKeluar = pengeluaran.reduce((t, x) => t + x.jumlah, 0);
@@ -468,7 +479,15 @@ function ringkasPolitik(state: VillageState) {
       ? { sisaHari: Math.max(0, p.kasus.batas - state.hari), nilai: p.kasus.nilai, biayaSuap: Math.round(15_000_000 + p.kasus.nilai * 0.3), sidang: viewSidang(state) }
       : null,
     kampanye: kampanye
-      ? { calon: kampanye.calon, bonusSuara: kampanye.bonusSuara, lawan: kampanye.lawan.map((l) => ({ ...l, kekuatan: Math.round(l.kekuatan) })) }
+      ? {
+          calon: kampanye.calon,
+          bonusSuara: kampanye.bonusSuara,
+          dukungId: kampanye.calon === 'dukung_lawan' ? (kampanye.dukungId ?? kampanye.lawan[0].id) : null,
+          dorongan: kampanye.dorongan ?? 0,
+          peluangJagoan: Math.round(peluangJagoan(state) * 100),
+          jedaBlusukan: Math.max(0, (p.jeda['kampanye:blusukan'] ?? 0) - state.hari),
+          lawan: kampanye.lawan.map((l) => ({ ...l, kekuatan: Math.round(l.kekuatan), kekuatanEfektif: Math.round(kekuatanEfektif(state)[l.id] ?? l.kekuatan) })),
+        }
       : null,
     bulanKampanye: POLITIK.bulanKampanye,
     aksiGelap: (Object.keys(AKSI_GELAP) as (keyof typeof AKSI_GELAP)[]).map((id) => ({
@@ -480,8 +499,11 @@ function ringkasPolitik(state: VillageState) {
     survei: surveiElektabilitas(state),
     nilaiAset: nilaiAset(state),
     hartaBersih: p.dompet + nilaiAset(state),
+    /** Rincian penghasilan resmi kades per bulan. */
+    rincianGaji: { siltap: siltapKades(), tunjanganJabatan: tunjanganJabatan(state), bengkokPerPanen: hasilBengkok(state), bulanPanen: BULAN_PANEN_BENGKOK },
     penghasilanPribadi:
-      4_000_000 +
+      gajiKades(state) +
+      Math.round(hasilBengkok(state) / 4) +
       (p.tunjangan ? POLITIK.tunjanganKades : 0) +
       (p.aset ?? []).reduce((t, a) => t + (ASET_PRIBADI.find((d) => d.id === a.id)?.penghasilan ?? 0), 0),
     asetPribadi: ASET_PRIBADI.map((d) => {

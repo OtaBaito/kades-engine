@@ -178,7 +178,7 @@ function rataKepuasan(s: VillageState): number {
 
 function cekJeda(s: VillageState, kunci: string, nama: string) {
   const siap = s.politik.jeda[kunci];
-  if (siap !== undefined && s.hari < siap) throw new GameError(`${nama} baru bisa lagi ${siap - s.hari} hari lagi.`);
+  if (siap !== undefined && s.hari < siap) throw new GameError(`${nama} bisa dilakukan lagi dalam ${siap - s.hari} hari.`);
 }
 
 function bayarDompet(s: VillageState, jumlah: number, untuk: string) {
@@ -194,6 +194,7 @@ function anggota(s: VillageState, id: string): AnggotaKeluarga {
 
 export function namaPemimpin(s: VillageState): string {
   if (s.politik.pemimpin === 'pemain') return s.namaKades;
+  if (s.politik.pemimpin === 'jagoan') return s.politik.namaJagoan ?? s.namaKades;
   return s.politik.keluarga.find((k) => k.id === s.politik.pemimpin)?.nama ?? s.namaKades;
 }
 
@@ -243,10 +244,43 @@ export function harianPolitik(s: VillageState, catat: Catat): void {
   }
 }
 
+/** Penghasilan tetap (siltap) kades. */
+export function siltapKades(): number {
+  return POLITIK.gajiKades;
+}
+
+/** Tunjangan jabatan: naik Rp 1,5 jt per level desa (desa makin besar, tanggung jawab dan tunjangan ikut naik). */
+export function tunjanganJabatan(s: VillageState): number {
+  return Math.max(0, (s.level ?? 1) - 1) * 1_500_000;
+}
+
+/** Penghasilan resmi bulanan kades: siltap + tunjangan jabatan. */
+export function gajiKades(s: VillageState): number {
+  return siltapKades() + tunjanganJabatan(s);
+}
+
+/** Bulan panen tanah bengkok (tanah kas desa yang hasilnya jadi hak kades). */
+export const BULAN_PANEN_BENGKOK = [4, 8, 12];
+
+/** Perkiraan hasil satu kali panen tanah bengkok: ikut level desa, irigasi, dan kepuasan petani penggarap. */
+export function hasilBengkok(s: VillageState): number {
+  const dasar = 6 * JT + 2 * JT * Math.max(0, (s.level ?? 1) - 1);
+  const irigasi = s.proyekSelesai.some((b) => b.proyekId === 'irigasi') ? 1.2 : 1;
+  const petani = 0.6 + (s.kepuasan.petani ?? 50) / 250;
+  return Math.round((dasar * irigasi * petani) / 100_000) * 100_000;
+}
+
 export function bulananPolitik(s: VillageState, catat: Catat): void {
   const p = s.politik;
-  // penghasilan resmi kades
-  p.dompet += POLITIK.gajiKades;
+  // penghasilan resmi kades: siltap + tunjangan jabatan
+  p.dompet += gajiKades(s);
+  // panen tanah bengkok tiap 4 bulan
+  const bulanTahun = (Math.floor(s.hari / 30) % 12) + 1;
+  if (BULAN_PANEN_BENGKOK.includes(bulanTahun)) {
+    const hasil = hasilBengkok(s);
+    p.dompet += hasil;
+    catat('info', `Panen tanah bengkok: Rp ${jt(hasil)} jt masuk ke kantong kades. Petani penggarap ikut senang kalau irigasi lancar.`);
+  }
   // honor jabatan keluarga ikut masuk kantong keluarga kades
   p.dompet += honorKeluarga(s);
   if (p.tunjangan) {
@@ -269,7 +303,7 @@ export function bulananPolitik(s: VillageState, catat: Catat): void {
   p.kecurigaan = clamp(p.kecurigaan - (s.integritas >= 50 ? 3 : 1));
   // elektabilitas keluarga luntur kalau tidak dirawat
   for (const k of p.keluarga) k.elektabilitas = clamp(k.elektabilitas - 1);
-  if (p.pemimpin !== 'pemain') p.tahunDinasti += 1 / 12;
+  if (p.pemimpin !== 'pemain' && p.pemimpin !== 'jagoan') p.tahunDinasti += 1 / 12;
 
   // audit inspektorat
   if (!p.kasus) {
@@ -294,6 +328,12 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
     const idx = Math.floor(nextRandom(s) * tersedia.length);
     const c = tersedia.splice(idx, 1)[0];
     lawan.push({ id: `lawan${i + 1}`, nama: c.nama, kubu: c.kubu, kekuatan: Math.round(38 + nextRandom(s) * 20 + 4 * (s.periode - 1)) });
+  }
+  // batas periode berlaku untuk masa jabatan berturut-turut: kades yang satu periode tidak menjabat
+  // (penerus atau jagoannya yang memimpin) boleh mencalonkan diri lagi
+  if (p.pemimpin !== 'pemain' && p.periodePemain > 0) {
+    p.periodePemain = 0;
+    catat('politik', `Setelah satu periode tidak menjabat, ${s.namaKades} boleh mencalonkan diri lagi.`);
   }
   let calon: PilihanCalon = 'tidak';
   if (bolehNyalon(s, 'pemain')) calon = 'pemain';
@@ -349,8 +389,26 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
 
   if (k.calon === 'tidak' || k.calon === 'dukung_lawan') {
     if (k.calon === 'dukung_lawan') {
-      p.dompet += 25 * JT;
-      catat('politik', `Kamu mendukung ${k.lawan[0].nama}. Ada "uang terima kasih" Rp 25 jt dari tim pemenangan.`);
+      const j = jagoan(k);
+      const peluang = peluangJagoan(s);
+      if (nextRandom(s) < peluang) {
+        p.dompet += 25 * JT;
+        p.jagoanMenang = true;
+        // jagoan menang: kamu jadi penasihat yang mengatur dari belakang, dan boleh nyalon lagi periode depan
+        if (p.pemimpin !== 'pemain') {
+          const lama = p.keluarga.find((x) => x.id === p.pemimpin);
+          if (lama) lama.jabatan = undefined;
+        }
+        p.pemimpin = 'jagoan';
+        p.namaJagoan = j.nama;
+        p.kampanye = null;
+        catat('politik', `${j.nama}, jagoan yang kamu dukung, menang pilkades. Tim pemenangan mengirim "uang terima kasih" Rp 25 jt. Kamu jadi penasihat kades baru, dan boleh mencalonkan diri lagi di pilkades berikutnya.`);
+        const persenMenang = Math.round(510 + nextRandom(s) * 120) / 10;
+        return { menang: true, persen: persenMenang, perKelompok: [] };
+      } else {
+        catat('politik', `${j.nama}, jagoan yang kamu dukung, kalah di pilkades. Pemenangnya mencatat siapa saja yang berkampanye untuk lawannya.`);
+        p.jagoanMenang = false;
+      }
     }
     s.status = 'pensiun';
     p.kampanye = null;
@@ -389,6 +447,7 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
       if (lama) lama.jabatan = undefined;
     }
     p.pemimpin = 'pemain';
+    p.namaJagoan = undefined;
     p.periodePemain += 1;
     catat('politik', `Menang pilkades dengan ${persen}% suara. Periode ke-${p.periodePemain} dimulai.`);
   }
@@ -476,9 +535,14 @@ export function pakaiDompet(s: VillageState, tujuan: TujuanDompet, jumlah?: numb
   if (tujuan === 'baliho') {
     cekJeda(s, 'dompet:baliho', 'Pasang baliho');
     bayarDompet(s, 10 * JT, 'baliho');
+    p.jeda['dompet:baliho'] = s.hari + 15;
+    if (p.kampanye?.calon === 'dukung_lawan') {
+      p.kampanye.dorongan = Math.min(25, (p.kampanye.dorongan ?? 0) + 4);
+      s.popularitas = clamp(s.popularitas + 1);
+      return `Baliho kades bergandengan tangan dengan ${jagoan(p.kampanye).nama} terpasang di tiap perempatan. (kekuatan jagoan +4)`;
+    }
     s.popularitas = clamp(s.popularitas + 3);
     if (p.kampanye) p.kampanye.bonusSuara = Math.min(12, p.kampanye.bonusSuara + 1);
-    p.jeda['dompet:baliho'] = s.hari + 15;
     return 'Baliho wajah kades tersenyum terpasang di tiap perempatan.';
   }
   if (tujuan === 'sumbang_masjid') {
@@ -514,11 +578,13 @@ export function pakaiDompet(s: VillageState, tujuan: TujuanDompet, jumlah?: numb
   }
   // serangan fajar
   if (!p.kampanye) throw new GameError('Serangan fajar hanya ada di masa kampanye.');
-  if (p.kampanye.calon !== 'pemain' && p.kampanye.calon !== 'penerus') throw new GameError('Tidak ada calon yang kamu usung.');
+  if (p.kampanye.calon === 'tidak') throw new GameError('Tidak ada calon yang kamu usung atau dukung.');
   bayarDompet(s, 30 * JT, 'serangan fajar');
-  p.kampanye.bonusSuara = Math.min(12, p.kampanye.bonusSuara + 4);
+  if (p.kampanye.calon === 'dukung_lawan') p.kampanye.dorongan = Math.min(25, (p.kampanye.dorongan ?? 0) + 7);
+  else p.kampanye.bonusSuara = Math.min(12, p.kampanye.bonusSuara + 4);
   p.kecurigaan = clamp(p.kecurigaan + 10);
   s.integritas = clamp(s.integritas - 3);
+  if (p.kampanye.calon === 'dukung_lawan') return `Amplop atas nama ${jagoan(p.kampanye).nama} dibagikan subuh-subuh dari rumah ke rumah. (kekuatan jagoan +7) Semoga tidak ada yang merekam.`;
   return 'Amplop dibagikan subuh-subuh dari rumah ke rumah. Semoga tidak ada yang merekam.';
 }
 
@@ -617,9 +683,51 @@ export function pilihPenerus(s: VillageState, id: string): string {
   return `${m.nama} (${m.peran}) resmi disiapkan sebagai penerus.`;
 }
 
-export function pilihCalon(s: VillageState, calon: PilihanCalon): string {
+function jagoan(k: NonNullable<KeadaanPolitik['kampanye']>): CalonLawan {
+  return k.lawan.find((l) => l.id === k.dukungId) ?? k.lawan[0];
+}
+
+/** Kekuatan efektif tiap calon lawan: jagoan kades mendapat dorongan kampanye dan pengaruh popularitas kades. */
+export function kekuatanEfektif(s: VillageState): Record<string, number> {
+  const k = s.politik.kampanye;
+  if (!k) return {};
+  const pengaruh = k.calon === 'dukung_lawan' ? Math.round((s.popularitas - 50) / 5) : 0;
+  return Object.fromEntries(k.lawan.map((l) => [l.id, Math.max(5, Math.min(95, l.kekuatan + (k.calon === 'dukung_lawan' && l.id === jagoan(k).id ? (k.dorongan ?? 0) + pengaruh : 0)))]));
+}
+
+/** Peluang jagoan kades menang (0-1), dari selisih kekuatan efektif. */
+export function peluangJagoan(s: VillageState): number {
+  const k = s.politik.kampanye;
+  if (!k || k.calon !== 'dukung_lawan') return 0;
+  const ef = kekuatanEfektif(s);
+  const j = jagoan(k).id;
+  const lawanTerkuat = Math.max(...k.lawan.filter((l) => l.id !== j).map((l) => ef[l.id]));
+  return Math.max(0.05, Math.min(0.95, 0.5 + (ef[j] - lawanTerkuat) / 30));
+}
+
+/** Kampanye gratis untuk jagoan: blusukan bersama. Makin populer kades, makin kuat dorongannya. */
+export function dorongJagoan(s: VillageState): string {
+  const p = s.politik;
+  const k = p.kampanye;
+  if (!k || k.calon !== 'dukung_lawan') throw new GameError('Pilih dulu calon yang mau kamu dukung.');
+  cekJeda(s, 'kampanye:blusukan', 'Blusukan bersama jagoan');
+  const naik = Math.max(1, Math.min(4, Math.round(s.popularitas / 25)));
+  k.dorongan = Math.min(25, (k.dorongan ?? 0) + naik);
+  p.jeda['kampanye:blusukan'] = s.hari + 7;
+  return `Kamu blusukan bersama ${jagoan(k).nama} dari pos ronda ke pengajian dan arisan. (kekuatan jagoan +${naik})`;
+}
+
+export function pilihCalon(s: VillageState, calon: PilihanCalon, lawanId?: string): string {
   const p = s.politik;
   if (!p.kampanye) throw new GameError(`Masa kampanye belum mulai. Kampanye dibuka di bulan ke-${POLITIK.bulanKampanye} periode.`);
+  if (calon === 'dukung_lawan') {
+    const j = p.kampanye.lawan.find((l) => l.id === lawanId) ?? p.kampanye.lawan[0];
+    // pindah jagoan di tengah jalan: dorongan lama hangus
+    if (p.kampanye.dukungId !== j.id) p.kampanye.dorongan = 0;
+    p.kampanye.calon = 'dukung_lawan';
+    p.kampanye.dukungId = j.id;
+    return `Kamu mendukung ${j.nama} (${j.kubu}). Kampanyekan dia supaya menang: blusukan bersama, baliho, atau cara yang lebih gelap.`;
+  }
   if (calon === 'pemain' && !bolehNyalon(s, 'pemain')) throw new GameError(`Kamu sudah ${p.periodePemain} periode. Aturan hanya membolehkan ${p.maksPeriode}.`);
   if (calon === 'penerus') {
     if (!p.penerusId) throw new GameError('Pilih penerus dulu dari keluarga.');
@@ -629,7 +737,7 @@ export function pilihCalon(s: VillageState, calon: PilihanCalon): string {
   const teks: Record<PilihanCalon, string> = {
     pemain: 'Kamu mendaftar lagi sebagai calon kades.',
     penerus: `${p.keluarga.find((k) => k.id === p.penerusId)?.nama} didaftarkan sebagai calon kades.`,
-    dukung_lawan: `Kamu diam-diam mendukung ${p.kampanye.lawan[0].nama}.`,
+    dukung_lawan: '',
     tidak: 'Kamu memutuskan tidak ikut pilkades kali ini.',
   };
   return teks[calon];
@@ -722,7 +830,7 @@ export interface RaporWarisan {
 export function raporWarisan(s: VillageState): RaporWarisan {
   const p = s.politik;
   const desa = Math.round((s.indeks.sosial + s.indeks.ekonomi + s.indeks.lingkungan) / 3);
-  const tahunBerkuasa = Math.round((s.hari / 360) * 10) / 10;
+  const tahunBerkuasa = Math.round(((s.hari - (s.politik.mulaiHari ?? 0)) / 360) * 10) / 10;
   const kuasa = Math.round(clamp(tahunBerkuasa * 12.5));
   const harta = Math.round(clamp(Math.max(0, p.dompet + nilaiAset(s)) / (10 * JT)));
   const namaBaik = Math.round(clamp(s.integritas - (s.status === 'ditangkap' ? 40 : s.status === 'dimakzulkan' ? 20 : 0) - p.pernahKasus * 5));
@@ -732,10 +840,11 @@ export function raporWarisan(s: VillageState): RaporWarisan {
   if (s.status === 'ditangkap') gelar = harta >= 50 ? 'Koruptor Apes' : 'Napi Tipikor';
   else if (s.status === 'dimakzulkan') gelar = 'Dimakzulkan BPD';
   else if (s.status === 'naik_kelas') gelar = 'Naik Kelas ke Kabupaten';
-  else if (p.pemimpin !== 'pemain' || p.tahunDinasti > 0) gelar = `Dinasti ${Math.max(1, Math.round(tahunBerkuasa))} Tahun`;
+  else if ((p.pemimpin !== 'pemain' && p.pemimpin !== 'jagoan') || p.tahunDinasti > 0) gelar = `Dinasti ${Math.max(1, Math.round(tahunBerkuasa))} Tahun`;
   else if (harta >= 60 && namaBaik < 40) gelar = 'Koruptor Lolos';
   else if (desa >= 65 && namaBaik >= 70) gelar = 'Kades Teladan';
   else if (s.status === 'kalah') gelar = 'Tumbang di Pilkades';
+  else if (s.status === 'pensiun' && s.politik.jagoanMenang) gelar = 'Pembuat Raja';
   else if (s.status === 'pensiun') gelar = 'Pensiun Tenang';
   else if (harta >= 40) gelar = 'Raja Kecil';
   else gelar = 'Kades Biasa Saja';

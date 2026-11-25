@@ -20,6 +20,7 @@ export type PosKas =
   | 'Rekrut pegawai'
   | 'Cicilan & pelunasan'
   | 'Tunjangan kades'
+  | 'Perjalanan & jamuan dinas'
   | 'Bocor (mark-up)'
   | 'Dana cadangan'
   | 'Penyertaan modal'

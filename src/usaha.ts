@@ -485,3 +485,8 @@ export function viewUsaha(s: VillageState) {
     tawaranBerikutHari: us.tawaran ? null : Math.max(0, us.tawaranBerikut - s.hari),
   };
 }
+
+/** Perkiraan retribusi bulanan dari perusahaan yang beroperasi (untuk laporan keuangan). */
+export function retribusiUsaha(s: VillageState): number {
+  return (s.usaha?.daftar ?? []).filter((u) => u.status === 'beroperasi').reduce((t, u) => t + (USAHA_BY_ID.get(u.id)?.bulanan.kas ?? 0), 0);
+}

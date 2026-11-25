@@ -152,6 +152,13 @@ export const MISI: MisiTemplate[] = [
   { jenis: 'upgrade', judul: () => 'Tingkatkan satu bangunan', target: [1, 1], hadiahKas: 15 * JT, hadiahXp: 35 },
   { jenis: 'dekorasi', judul: () => 'Percantik desa dengan satu dekorasi', target: [1, 1], hadiahKas: 6 * JT, hadiahXp: 20 },
   { jenis: 'bumdes', judul: () => 'Buka atau tingkatkan satu usaha BUMDes', target: [1, 1], hadiahKas: 12 * JT, hadiahXp: 30 },
+  { jenis: 'proyekSelesai', judul: () => 'Rampungkan satu pembangunan', target: [1, 1], hadiahKas: 15 * JT, hadiahXp: 35 },
+  { jenis: 'rekrut', judul: () => 'Isi satu kursi pegawai yang kosong', target: [1, 1], hadiahKas: 8 * JT, hadiahXp: 25 },
+  { jenis: 'sowan', judul: (n) => (n > 1 ? `Sowan ke ${n} pejabat` : 'Sowan ke satu pejabat'), target: [1, 2], hadiahKas: 10 * JT, hadiahXp: 30 },
+  { jenis: 'rapatBpd', judul: () => 'Gelar rapat terbuka dengan BPD', target: [1, 1], hadiahKas: 8 * JT, hadiahXp: 25 },
+  { jenis: 'setorPajak', judul: () => 'Setor titipan pajak tepat waktu', target: [1, 1], hadiahKas: 6 * JT, hadiahXp: 20 },
+  { jenis: 'tabung', judul: () => 'Sisihkan kas ke dana cadangan', target: [1, 1], hadiahKas: 6 * JT, hadiahXp: 20 },
+  { jenis: 'bacaBerita', judul: () => 'Baca koran desa terbaru', target: [1, 1], hadiahKas: 4 * JT, hadiahXp: 15 },
 ];
 
 /** Misi mingguan: target lebih besar, hadiah lebih besar. Berganti tiap 7 hari game. */
@@ -161,6 +168,10 @@ export const MISI_MINGGUAN: MisiTemplate[] = [
   { jenis: 'aspirasi', judul: (n) => `Tanggapi ${n} keluhan warga minggu ini`, target: [3, 5], hadiahKas: 20 * JT, hadiahXp: 60 },
   { jenis: 'proyekMulai', judul: () => 'Mulai satu pembangunan minggu ini', target: [1, 1], hadiahKas: 30 * JT, hadiahXp: 70 },
   { jenis: 'bumdes', judul: () => 'Buka atau tingkatkan usaha BUMDes minggu ini', target: [1, 1], hadiahKas: 25 * JT, hadiahXp: 60 },
+  { jenis: 'upgrade', judul: () => 'Rampungkan peningkatan satu bangunan minggu ini', target: [1, 1], hadiahKas: 30 * JT, hadiahXp: 70 },
+  { jenis: 'sowan', judul: () => 'Jalin relasi: sowan ke satu pejabat minggu ini', target: [1, 1], hadiahKas: 20 * JT, hadiahXp: 50 },
+  { jenis: 'rapatBpd', judul: () => 'Duduk bareng BPD dalam rapat terbuka minggu ini', target: [1, 1], hadiahKas: 20 * JT, hadiahXp: 50 },
+  { jenis: 'dekorasi', judul: () => 'Pasang satu dekorasi baru minggu ini', target: [1, 1], hadiahKas: 15 * JT, hadiahXp: 40 },
 ];
 
 export const JUDUL_MISI: Record<StatKey, (n: number) => string> = Object.fromEntries(

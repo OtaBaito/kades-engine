@@ -293,6 +293,8 @@ export interface Mosi {
 }
 
 export interface StateRelasi {
+  /** Biaya politik yang dibayar dari anggaran dinas desa bulan ini (untuk batas wajar). */
+  dinas?: { bulan: number; total: number };
   tokoh: Record<IdTokoh, Tokoh>;
   /** Dukungan BPD terhadap kades (0-100). */
   bpd: number;
@@ -370,12 +372,40 @@ function ubahRelasi(r: StateRelasi, id: IdTokoh, d: number) {
 
 function cekJeda(s: VillageState, r: StateRelasi, kunci: string, nama: string) {
   const sampai = r.jeda[kunci] ?? 0;
-  if (s.hari < sampai) throw new GameError(`${nama} baru bisa lagi ${sampai - s.hari} hari lagi.`);
+  if (s.hari < sampai) throw new GameError(`${nama} bisa dilakukan lagi dalam ${sampai - s.hari} hari.`);
 }
 
 function bayarDompet(s: VillageState, n: number, untuk: string) {
-  if (s.politik.dompet < n) throw new GameError(`Uang pribadimu kurang untuk ${untuk} (butuh Rp ${Math.round(n / JT)} jt).`);
+  if (s.politik.dompet < n) throw new GameError(`Uang pribadimu kurang untuk ${untuk} (butuh Rp ${Math.round(n / JT)} jt). Kamu bisa memakai anggaran dinas desa.`);
   s.politik.dompet -= n;
+}
+
+export type SumberDana = 'pribadi' | 'dinas';
+/** Batas wajar perjalanan dan jamuan dinas per bulan; di atas itu warga dan BPD mulai curiga. */
+export const BATAS_DINAS = 20 * JT;
+
+/**
+ * Bayar biaya politik dari uang pribadi atau dari anggaran perjalanan dan jamuan dinas desa (resmi, tercatat
+ * di laporan keuangan). Anggaran dinas sedikit menaikkan gosip, dan melonjak kalau melewati batas wajar sebulan.
+ */
+function bayarPolitik(s: VillageState, n: number, untuk: string, dana: SumberDana = 'pribadi'): string {
+  if (dana === 'pribadi') {
+    bayarDompet(s, n, untuk);
+    return '';
+  }
+  if (s.kas < n) throw new GameError(`Kas desa kurang untuk ${untuk} (butuh Rp ${Math.round(n / JT)} jt).`);
+  const r = stateRelasi(s);
+  const bulan = Math.floor(s.hari / 30);
+  if (!r.dinas || r.dinas.bulan !== bulan) r.dinas = { bulan, total: 0 };
+  r.dinas.total += n;
+  arus(s, 'Perjalanan & jamuan dinas', -n);
+  if (r.dinas.total > BATAS_DINAS) {
+    s.politik.kecurigaan = clamp(s.politik.kecurigaan + 4);
+    s.integritas = clamp(s.integritas - 1);
+    return ` Dibayar dari anggaran dinas, tapi biaya dinas bulan ini sudah Rp ${Math.round(r.dinas.total / JT)} jt: warga mulai bertanya-tanya. (gosip +4, integritas -1)`;
+  }
+  s.politik.kecurigaan = clamp(s.politik.kecurigaan + 1);
+  return ` Dibayar dari anggaran dinas desa (tercatat di laporan, gosip +1).`;
 }
 
 function terapkan(s: VillageState, r: StateRelasi, e: PerdesDef['saatSah'] | undefined) {
@@ -438,7 +468,7 @@ export function perdesAktif(s: VillageState, id: string): boolean {
 
 export type AksiRelasi = 'sowan' | 'kritik';
 
-export function aturRelasi(s: VillageState, aksi: AksiRelasi, id: IdTokoh): string {
+export function aturRelasi(s: VillageState, aksi: AksiRelasi, id: IdTokoh, dana: SumberDana = 'pribadi'): string {
   const r = stateRelasi(s);
   const t = r.tokoh[id];
   const def = TOKOH[id];
@@ -446,7 +476,7 @@ export function aturRelasi(s: VillageState, aksi: AksiRelasi, id: IdTokoh): stri
   if (aksi === 'sowan') {
     cekJeda(s, r, `sowan:${id}`, `Sowan ke ${def.jabatan.toLowerCase()}`);
     if (id === 'presiden' && s.popularitas < 70) throw new GameError('Audiensi dengan presiden hanya untuk kades yang populer (popularitas minimal 70).');
-    bayarDompet(s, def.biayaSowan, `sowan ke ${def.jabatan.toLowerCase()}`);
+    const catatanDana = bayarPolitik(s, def.biayaSowan, `sowan ke ${def.jabatan.toLowerCase()}`, dana);
     const naik = Math.round(6 + nextRandom(s) * 5);
     ubahRelasi(r, id, naik);
     r.jeda[`sowan:${id}`] = s.hari + (id === 'presiden' ? 180 : 30);
@@ -460,7 +490,7 @@ export function aturRelasi(s: VillageState, aksi: AksiRelasi, id: IdTokoh): stri
       presiden: `Kades diundang audiensi singkat dengan Presiden ${t.nama}. Fotonya beredar di grup warga.`,
     };
     if (id === 'presiden') s.popularitas = clamp(s.popularitas + 3);
-    return `${teks[id]} (relasi +${naik})`;
+    return `${teks[id]} (relasi +${naik})${catatanDana}`;
   }
   // kritik terbuka: populer di warga, merusak relasi
   cekJeda(s, r, `kritik:${id}`, `Kritik terbuka ke ${def.jabatan.toLowerCase()}`);
@@ -513,16 +543,16 @@ export function dukungCalon(s: VillageState, calonId: string | null, cara: CaraD
 
 export type AksiBpd = 'jamuan' | 'rapat_terbuka';
 
-export function aturBpd(s: VillageState, aksi: AksiBpd): string {
+export function aturBpd(s: VillageState, aksi: AksiBpd, dana: SumberDana = 'pribadi'): string {
   const r = stateRelasi(s);
   if (aksi === 'jamuan') {
     cekJeda(s, r, 'bpd:jamuan', 'Jamuan BPD');
-    bayarDompet(s, 8 * JT, 'menjamu anggota BPD');
+    const catatanDana = bayarPolitik(s, 8 * JT, 'menjamu anggota BPD', dana);
     r.bpd = clamp(r.bpd + 8);
     s.politik.kecurigaan = clamp(s.politik.kecurigaan + 2);
     s.integritas = clamp(s.integritas - 1);
     r.jeda['bpd:jamuan'] = s.hari + 30;
-    return 'Anggota BPD dijamu makan malam di rumah makan kota. Pulangnya masing-masing membawa "oleh-oleh". (BPD +8)';
+    return 'Anggota BPD dijamu makan malam di rumah makan kota. Pulangnya masing-masing membawa "oleh-oleh". (BPD +8)' + catatanDana;
   }
   cekJeda(s, r, 'bpd:rapat', 'Rapat terbuka dengan BPD');
   const naik = 3 + (s.integritas >= 60 ? 3 : 0);
@@ -595,9 +625,10 @@ export function responMosi(s: VillageState, cara: ResponMosi): string {
 
 export type AksiWakil = 'pilih' | 'rangkul' | 'berhentikan' | 'cari';
 
-export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string): string {
+export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: SumberDana = 'pribadi'): string {
   const r = stateRelasi(s);
   if (aksi === 'cari') {
+    if (r.wakil) throw new GameError('Kursi wakil kades sudah terisi. Berhentikan dulu wakil yang sekarang sebelum mencari calon baru.');
     cekJeda(s, r, 'wakil:cari', 'Mencari calon wakil baru');
     r.jeda['wakil:cari'] = s.hari + 30;
     r.kandidatWakil = buatKandidatAcak(s, r);
@@ -617,10 +648,10 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string): string
   if (!w) throw new GameError('Belum ada wakil kades.');
   if (aksi === 'rangkul') {
     cekJeda(s, r, 'wakil:rangkul', 'Merangkul wakil');
-    bayarDompet(s, 5 * JT, 'merangkul wakil');
+    const catatanDana = bayarPolitik(s, 5 * JT, 'merangkul wakil', dana);
     r.jeda['wakil:rangkul'] = s.hari + 30;
     w.loyalitas = clamp(w.loyalitas + 12);
-    return `Kades mengajak ${w.nama} makan malam dan memberinya proyek kecil untuk diurus. (loyalitas +12)`;
+    return `Kades mengajak ${w.nama} makan malam dan memberinya proyek kecil untuk diurus. (loyalitas +12)${catatanDana}`;
   }
   // berhentikan
   cekJeda(s, r, 'wakil:ganti', 'Mengganti wakil');
@@ -938,6 +969,9 @@ export function viewRelasi(s: VillageState) {
     .map((j) => ({ jenis: j, nama: NAMA_PEMILIHAN[j], hariLagi: Math.max(0, r.jadwal[j] - s.hari) }))
     .sort((a, b) => a.hariLagi - b.hariLagi);
   return {
+    /** Biaya politik dari anggaran dinas bulan ini dan batas wajarnya. */
+    dinasBulanIni: r.dinas && r.dinas.bulan === Math.floor(s.hari / 30) ? r.dinas.total : 0,
+    batasDinas: BATAS_DINAS,
     tokoh: URUT_TOKOH.map((id) => ({
       id,
       jabatan: TOKOH[id].jabatan,
@@ -989,4 +1023,21 @@ export function viewRelasi(s: VillageState) {
 function latarView(l: LatarWakil) {
   const d = LATAR_WAKIL[l];
   return { namaLatar: d.nama, plus: d.plus, minus: d.minus };
+}
+
+/** Perkiraan arus kas bulanan dari perdes dan wakil kades (untuk laporan keuangan). */
+export function arusBulananRelasi(s: VillageState): { masukPerdes: number; keluarPerdes: number; wakil: number } {
+  const r = s.relasi;
+  if (!r) return { masukPerdes: 0, keluarPerdes: 0, wakil: 0 };
+  let masukPerdes = 0;
+  let keluarPerdes = 0;
+  for (const pid of r.perdes) {
+    const k = PERDES.find((d) => d.id === pid)?.bulanan?.kas ?? 0;
+    if (k > 0) masukPerdes += k;
+    else keluarPerdes -= k;
+  }
+  let wakil = 0;
+  // tunjangan wakil ditambah biaya bulanan latar belakangnya (kalau ada)
+  if (r.wakil) wakil = TUNJANGAN_WAKIL - Math.min(0, LATAR_WAKIL[r.wakil.latar].bulanan?.kas ?? 0);
+  return { masukPerdes, keluarPerdes, wakil };
 }

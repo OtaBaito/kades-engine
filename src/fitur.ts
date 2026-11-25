@@ -115,7 +115,7 @@ export function normalisasi(s: VillageState): void {
   s.xp ??= 0;
   s.level ??= 1;
   s.misi ??= { bulan: -1, daftar: [] };
-  s.statistik ??= { tagih: 0, aspirasi: 0, kartu: 0, proyekMulai: 0, proyekSelesai: 0, upgrade: 0, dekorasi: 0, bumdes: 0 };
+  s.statistik ??= { tagih: 0, aspirasi: 0, kartu: 0, proyekMulai: 0, proyekSelesai: 0, upgrade: 0, dekorasi: 0, bumdes: 0, rekrut: 0, sowan: 0, rapatBpd: 0, setorPajak: 0, tabung: 0, pidato: 0, izinUsaha: 0, bacaBerita: 0 };
   s.statistik.bumdes ??= 0;
   s.pencapaian ??= [];
   s.pegawai ??= [];
@@ -139,7 +139,7 @@ export function tambahXp(s: VillageState, n: number, catat: Catat): void {
 }
 
 export function tambahStat(s: VillageState, k: StatKey, n = 1): void {
-  s.statistik[k] += n;
+  s.statistik[k] = (s.statistik[k] ?? 0) + n;
 }
 
 // ---------------------------------------------------------------- koin retribusi
@@ -312,44 +312,68 @@ export function beliDekorasi(s: VillageState, id: string): { pesan: string; efek
 
 // ---------------------------------------------------------------- misi
 
+/**
+ * Jenis misi yang masuk akal saat ini: yang sudah diotomatiskan pegawai, yang tidak mungkin dikerjakan,
+ * atau yang baru saja muncul (bulan lalu, minggu ini) disisihkan supaya misi tidak terasa berulang.
+ */
+function misiCocok(s: VillageState, jenis: StatKey, hindari: Set<StatKey>): boolean {
+  if (hindari.has(jenis)) return false;
+  // pegawai yang mengerjakan otomatis membuat misi manualnya mustahil
+  if (jenis === 'tagih' && s.pegawai.includes('bendahara')) return false;
+  if (jenis === 'aspirasi' && s.pegawai.includes('humas')) return false;
+  const proyekSisa = PROJECTS_SISA(s);
+  if (jenis === 'proyekMulai' && proyekSisa === 0) return false;
+  if (jenis === 'proyekSelesai' && s.proyekBerjalan.every((p) => p.upgradeKe)) return false;
+  if (jenis === 'upgrade' && !s.proyekSelesai.some((b) => b.level < 5)) return false;
+  if (jenis === 'dekorasi' && DEKORASI.every((d) => s.dekorasi.includes(d.id) || (d.minLevel ?? 1) > s.level)) return false;
+  if (jenis === 'bumdes' && BUMDES.every((b) => (s.bumdes[b.id] ?? 0) >= b.maksLevel)) return false;
+  if (jenis === 'rekrut' && !PEGAWAI.some((p) => (p.minLevel ?? 1) <= s.level && !(s.staf ?? []).some((x) => x.peran === p.id))) return false;
+  if (jenis === 'setorPajak' && !(s.pajak?.titipan && s.pajak.titipan > 0)) return false;
+  if (jenis === 'bacaBerita' && !(s.nasional?.berita?.length)) return false;
+  return true;
+}
+
+function PROJECTS_SISA(s: VillageState): number {
+  let n = 0;
+  for (const id of PROJECT_BY_ID.keys()) if (!s.proyekSelesai.some((b) => b.proyekId === id) && !s.proyekBerjalan.some((b) => b.proyekId === id)) n++;
+  return n;
+}
+
+function ambilMisi(s: VillageState, pool: MisiTemplateLike[], n: number, hindari: Set<StatKey>) {
+  let cocok = pool.filter((m) => misiCocok(s, m.jenis, hindari));
+  // kalau terlalu sedikit pilihan, longgarkan syarat "baru saja muncul"
+  if (cocok.length < n) cocok = pool.filter((m) => misiCocok(s, m.jenis, new Set()));
+  const hasil: MisiTemplateLike[] = [];
+  for (let i = 0; i < n && cocok.length > 0; i++) hasil.push(cocok.splice(Math.floor(nextRandom(s) * cocok.length), 1)[0]);
+  return hasil;
+}
+
+type MisiTemplateLike = (typeof MISI)[number];
+
 export function siapkanMisi(s: VillageState, bulan: number): void {
   if (s.misi.bulan === bulan) return;
-  // kalau kaur keuangan sudah menagih otomatis, misi "tagih iuran" tidak mungkin selesai
-  const pool = MISI.filter((m) => m.jenis !== 'tagih' || !s.pegawai.includes('bendahara'));
-  const daftar = [];
-  for (let i = 0; i < 3 && pool.length > 0; i++) {
-    const idx = Math.floor(nextRandom(s) * pool.length);
-    const t = pool.splice(idx, 1)[0];
+  const hindari = new Set<StatKey>([...s.misi.daftar.map((m) => m.jenis), ...(s.misiMingguan?.daftar ?? []).map((m) => m.jenis)]);
+  const daftar = ambilMisi(s, MISI, 3, hindari).map((t, i) => {
     const target = t.target[0] + Math.floor(nextRandom(s) * (t.target[1] - t.target[0] + 1));
-    daftar.push({
-      id: `m${bulan}-${i}`,
-      jenis: t.jenis,
-      target,
-      awal: s.statistik[t.jenis],
-      hadiahKas: t.hadiahKas,
-      hadiahXp: t.hadiahXp,
-      diklaim: false,
-    });
-  }
+    return { id: `m${bulan}-${i}`, jenis: t.jenis, target, awal: s.statistik[t.jenis] ?? 0, hadiahKas: t.hadiahKas, hadiahXp: t.hadiahXp, diklaim: false };
+  });
   s.misi = { bulan, daftar };
 }
 
-/** Misi mingguan berganti tiap 7 hari game (2 misi). */
+/** Misi mingguan berganti tiap 7 hari game (2 misi), tidak sama dengan misi bulan ini maupun minggu lalu. */
 export function siapkanMisiMingguan(s: VillageState): void {
   const minggu = Math.floor(s.hari / 7);
   if (s.misiMingguan?.minggu === minggu) return;
-  const pool = MISI_MINGGUAN.filter((m) => m.jenis !== 'tagih' || !s.pegawai.includes('bendahara'));
-  const daftar = [];
-  for (let i = 0; i < 2 && pool.length > 0; i++) {
-    const t = pool.splice(Math.floor(nextRandom(s) * pool.length), 1)[0];
+  const hindari = new Set<StatKey>([...s.misi.daftar.filter((m) => !m.diklaim).map((m) => m.jenis), ...(s.misiMingguan?.daftar ?? []).map((m) => m.jenis)]);
+  const daftar = ambilMisi(s, MISI_MINGGUAN, 2, hindari).map((t, i) => {
     const target = t.target[0] + Math.floor(nextRandom(s) * (t.target[1] - t.target[0] + 1));
-    daftar.push({ id: `w${minggu}-${i}`, jenis: t.jenis, target, awal: s.statistik[t.jenis], hadiahKas: t.hadiahKas, hadiahXp: t.hadiahXp, diklaim: false });
-  }
+    return { id: `w${minggu}-${i}`, jenis: t.jenis, target, awal: s.statistik[t.jenis] ?? 0, hadiahKas: t.hadiahKas, hadiahXp: t.hadiahXp, diklaim: false };
+  });
   s.misiMingguan = { minggu, daftar };
 }
 
 export function progresMisi(s: VillageState, m: VillageState['misi']['daftar'][number]): number {
-  return Math.min(m.target, s.statistik[m.jenis] - m.awal);
+  return Math.min(m.target, (s.statistik[m.jenis] ?? 0) - m.awal);
 }
 
 export function klaimMisi(s: VillageState, id: string, catat: Catat): string {
@@ -378,23 +402,51 @@ export function cekPencapaian(s: VillageState, catat: Catat): void {
 // ---------------------------------------------------------------- BUMDes (pendapatan pasif)
 
 export function bonusBumdes(s: VillageState): number {
-  return PEGAWAI.filter((p) => s.pegawai.includes(p.id)).reduce((t, p) => t + (p.bonusBumdes ?? 0) * kekuatanPeran(s, p.id), 0) + potonganBumdes(s);
+  // manajer sehebat apa pun paling banyak menambah 30%
+  const bonus = PEGAWAI.filter((p) => s.pegawai.includes(p.id)).reduce((t, p) => t + (p.bonusBumdes ?? 0) * kekuatanPeran(s, p.id), 0);
+  return Math.min(0.3, bonus) + potonganBumdes(s);
 }
+
+/** Pengali pendapatan dasar BUMDes: usaha desa balik modal sekitar 45 hari, bukan sebulan. */
+const SKALA_PENDAPATAN_BUMDES = 0.65;
 
 export function pendapatanBumdes(def: (typeof BUMDES)[number], level: number): number {
-  return level <= 0 ? 0 : Math.round(def.pendapatanHarian * (1 + 0.5 * (level - 1)));
+  return level <= 0 ? 0 : Math.round(def.pendapatanHarian * SKALA_PENDAPATAN_BUMDES * (1 + 0.8 * (level - 1)));
 }
 
-export function biayaBumdes(def: (typeof BUMDES)[number], level: number): number {
-  // level 0 -> bangun baru; selanjutnya upgrade makin mahal
-  return Math.round(def.biaya * Math.pow(1.6, level));
+/** Jumlah usaha BUMDes yang sudah dibuka. */
+export function jumlahUsahaBumdes(s: VillageState): number {
+  return Object.values(s.bumdes ?? {}).filter((l) => l > 0).length;
+}
+
+/**
+ * Biaya bangun (level 0) atau upgrade. Usaha baru makin mahal tiap usaha yang sudah ada (lahan, pengurus,
+ * dan modal kerja makin sulit dicari). Tanpa state: biaya dasar (untuk menilai aset).
+ */
+export function biayaBumdes(def: (typeof BUMDES)[number], level: number, s?: VillageState): number {
+  if (level === 0) return Math.round(def.biaya * (1 + 0.35 * (s ? jumlahUsahaBumdes(s) : 0)));
+  return Math.round(def.biaya * Math.pow(1.5, level));
+}
+
+/**
+ * Kejenuhan pasar desa: makin banyak usaha (dan levelnya), makin sedikit pembeli per usaha.
+ * 1 = tidak jenuh. Total 3 level usaha masih penuh, lalu turun.
+ */
+export function kejenuhanBumdes(s: VillageState, tambahLevel = 0): number {
+  const totalLevel = Object.values(s.bumdes ?? {}).reduce((t, l) => t + Math.max(0, l), 0) + tambahLevel;
+  return 1 / (1 + 0.1 * Math.max(0, totalLevel - 3));
+}
+
+/** Pendapatan BUMDes per hari setelah bonus manajer dan kejenuhan pasar. */
+export function totalPendapatanBumdes(s: VillageState): number {
+  let total = 0;
+  for (const def of BUMDES) total += pendapatanBumdes(def, s.bumdes?.[def.id] ?? 0);
+  return Math.round(total * (1 + bonusBumdes(s)) * kejenuhanBumdes(s));
 }
 
 /** Pendapatan pasif harian: langsung masuk kas, tetap jalan saat game ditutup. */
 export function hariBumdes(s: VillageState): number {
-  let total = 0;
-  for (const def of BUMDES) total += pendapatanBumdes(def, s.bumdes[def.id] ?? 0);
-  total = Math.round(total * (1 + bonusBumdes(s)));
+  const total = totalPendapatanBumdes(s);
   if (total > 0) {
     arus(s, 'Usaha BUMDes', total);
   }
@@ -410,11 +462,12 @@ export function bangunBumdes(s: VillageState, id: string, sudahAda: (proyekId: s
   if (def.syaratProyek && !sudahAda(def.syaratProyek)) {
     throw new GameError(`${def.nama} butuh ${PROJECT_BY_ID.get(def.syaratProyek)?.nama ?? def.syaratProyek} dulu.`);
   }
-  const biaya = biayaBumdes(def, level);
+  const biaya = biayaBumdes(def, level, s);
   if (s.kas < biaya) throw new GameError(`Kas tidak cukup. Butuh Rp ${Math.round(biaya / JT)} jt.`);
   arus(s, 'Usaha BUMDes (modal)', -biaya);
   s.bumdes[id] = level + 1;
-  const per = pendapatanBumdes(def, level + 1);
+  // angka nyata: sudah termasuk bonus manajer dan kejenuhan pasar (sama dengan daftar BUMDes)
+  const per = Math.round(pendapatanBumdes(def, level + 1) * (1 + bonusBumdes(s)) * kejenuhanBumdes(s));
   return {
     pesan: level === 0 ? `${def.nama} dibuka! Pendapatan Rp ${String(Math.round((per / JT) * 10) / 10).replace(".", ",")} jt per hari.` : `${def.nama} naik ke level ${level + 1}. Pendapatan kini Rp ${String(Math.round((per / JT) * 10) / 10).replace(".", ",")} jt per hari.`,
     level: level + 1,

@@ -11,7 +11,7 @@ import { klaimHarian } from './harian.ts';
 import { bukaSidang, jawabAuditor } from './sidang.ts';
 import { bukaDusun } from './dusun.ts';
 import { harianMega, mulaiMega } from './mega.ts';
-import { angkatKeluarga } from './jabatan.ts';
+import { angkatKeluarga, lepasSemuaJabatanKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
 import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
 import { harianUnjuk, tanganiUnjuk } from './unjuk.ts';
@@ -34,6 +34,7 @@ import { tebakGender,
   nyaleg,
   pakaiDompet,
   pilihCalon,
+  dorongJagoan,
   pilihPenerus,
   promosiKeluarga,
   selesaikanAudit,
@@ -125,7 +126,7 @@ export function createVillage(params: { seed: string; namaDesa: string; namaKade
     xp: 0,
     level: 1,
     misi: { bulan: -1, daftar: [] },
-    statistik: { tagih: 0, aspirasi: 0, kartu: 0, proyekMulai: 0, proyekSelesai: 0, upgrade: 0, dekorasi: 0, bumdes: 0 },
+    statistik: { tagih: 0, aspirasi: 0, kartu: 0, proyekMulai: 0, proyekSelesai: 0, upgrade: 0, dekorasi: 0, bumdes: 0, rekrut: 0, sowan: 0, rapatBpd: 0, setorPajak: 0, tabung: 0, pidato: 0, izinUsaha: 0, bacaBerita: 0 },
     pencapaian: [],
     pegawai: [],
     staf: [],
@@ -271,9 +272,11 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
     // titipan pajak bukan uang desa, jadi tidak dihitung sebagai sisa anggaran
     const kas = kasBersih(state);
     if (kas > batas) {
-      const potong = kas > batas * 2 ? 0.5 : 0.25;
-      jumlah = Math.round(jumlah * (1 - potong));
-      log(state, events, 'buruk', `Sisa anggaran (SiLPA) tahun lalu terlalu besar. Kabupaten memotong termin pertama ${potong * 100}% karena dana desa dianggap tidak terserap.`);
+      // potongan = separuh kelebihan kas, minimal 25% termin dan paling banyak seluruh termin
+      const potongRp = Math.min(jumlah, Math.max(jumlah * 0.25, (kas - batas) * 0.5));
+      const potong = Math.round((potongRp / jumlah) * 100);
+      jumlah = Math.round(jumlah - potongRp);
+      log(state, events, 'buruk', `Sisa anggaran (SiLPA) tahun lalu terlalu besar. Kabupaten memotong termin pertama ${potong}% (${formatRupiah(potongRp)}) karena dana desa dianggap tidak terserap.`);
     }
   }
   // relasi dengan bupati menentukan termin (sampai ±10%)
@@ -380,6 +383,7 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
         kepuasan: scaleRecord(def.kepuasan, 0.4 * kualitas),
       });
       log(state, events, 'baik', `${def.nama} naik ke level ${aktif.upgradeKe}.`);
+      tambahStat(state, 'upgrade');
       if (aktif.kontraktor === 'murah') {
         state.terjadwal.push({
           hari: state.hari + 60 + Math.floor(nextRandom(state) * 60),
@@ -455,6 +459,15 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
     log(state, events, 'politik', `Bersambung: ${kartu.judul}.`);
   }
 
+  // gapura dari "proyek titipan" benar-benar berdiri (sebagai dekorasi), walau dibayar mahal
+  if (hasFlag(state, 'gapura_titipan')) {
+    removeFlag(state, 'gapura_titipan');
+    if (!state.dekorasi.includes('gapura')) {
+      state.dekorasi.push('gapura');
+      log(state, events, 'info', 'Gapura dari kontraktor titipan kabupaten selesai dipasang di pintu masuk desa.');
+    }
+  }
+
   // 4. kartu baru
   if (state.kotakMasuk.length < RULES.kotakMasukMaks && nextRandom(state) < RULES.peluangKartuHarian) {
     spawnCard(state, events, false);
@@ -462,6 +475,8 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
 
   // 5. desa hidup: koin retribusi, aspirasi, pegawai, pencapaian
   const catat: Catat = (j, t) => log(state, events, j, t);
+  // jaga-jaga: kalau awal bulan terlewat (mis. desa sempat tamat), misi bulan ini tetap disiapkan
+  siapkanMisi(state, Math.floor(state.hari / RULES.hariPerBulan) + 1);
   siapkanMisiMingguan(state);
   hariKoin(state);
   hariBumdes(state);
@@ -566,6 +581,11 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
     if (state.hari < siap) return false;
   } else if (card.jedaHari !== undefined && terakhir !== undefined && state.hari - terakhir < card.jedaHari) return false;
   if (state.kotakMasuk.some((k) => k.cardId === card.id)) return false;
+  if (card.grup) {
+    const g = state.riwayatKartu[`grup:${card.grup}`];
+    if (g !== undefined && state.hari - g < JEDA_GRUP) return false;
+    if (state.kotakMasuk.some((k) => k.cardId.startsWith(`acak_${card.grup}_`))) return false;
+  }
   if (s.minHari !== undefined && state.hari < s.minHari + (state.geserHari?.[card.id] ?? 0)) return false;
   if (s.minIntegritas !== undefined && state.integritas < s.minIntegritas) return false;
   if (s.maxIntegritas !== undefined && state.integritas > s.maxIntegritas) return false;
@@ -580,10 +600,35 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   if (s.butuhPegawai && !(state.pegawai ?? []).includes(s.butuhPegawai)) return false;
   if (s.butuhSifat && !(state.staf ?? []).some((x) => x.sifat.includes(s.butuhSifat!))) return false;
   if (s.butuhCorak && !s.butuhCorak.includes(state.tipeDesa ?? 'agraris')) return false;
+  if (s.maxRataKepuasan !== undefined) {
+    const v = Object.values(state.kepuasan);
+    if (v.reduce((t, x) => t + x, 0) / Math.max(1, v.length) >= s.maxRataKepuasan) return false;
+  }
   if (card.hanyaLanjutan) return false;
   if (s.bulanTahun && !s.bulanTahun.includes((Math.floor(state.hari / RULES.hariPerBulan) % 12) + 1)) return false;
   return true;
 }
+
+/**
+ * Skala uang kartu keputusan mengikuti level desa: desa besar, masalahnya juga lebih mahal (+15% per level).
+ * Kartu yang menyebut angka rupiah di teks atau labelnya tidak diskalakan supaya angkanya tetap cocok.
+ */
+export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label: string }): number {
+  const sebutAngka = /\d\s*jt|Rp\s*\d/;
+  if (sebutAngka.test(card.teks) || sebutAngka.test(opsi.label)) return 1;
+  // desa besar dengan kas tipis (mis. baru diteruskan kades baru) tidak langsung dibebani biaya besar
+  const menurutLevel = 1 + 0.15 * Math.max(0, (state.level ?? 1) - 1);
+  const menurutKas = Math.max(1, state.kas / (150 * 1_000_000));
+  return Math.min(menurutLevel, menurutKas);
+}
+
+export function efekKartuBerskala<E extends { kas?: number }>(e: E, f: number): E {
+  if (f === 1 || !e.kas) return e;
+  return { ...e, kas: Math.round((e.kas * f) / 100_000) * 100_000 };
+}
+
+/** Jeda antar kartu sejenis (variasi templat yang sama), supaya cerita yang mirip tidak beruntun. */
+const JEDA_GRUP = 90;
 
 function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void {
   const kandidat = CARDS.filter((c) => cardEligible(state, c) && (!awal || c.kategori === 'aduan' || c.kategori === 'usulan'));
@@ -595,14 +640,61 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(card.jedaHari * (0.5 + nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita
   const sifat = card.syarat?.butuhSifat;
-  const calon = sifat ? state.staf.filter((x) => x.sifat.includes(sifat)) : [];
+  const peran = card.syarat?.butuhPegawai;
+  // kartu berbasis jabatan: pegawai di jabatan itu yang jadi tokoh cerita
+  const calon = sifat ? state.staf.filter((x) => x.sifat.includes(sifat)) : peran ? state.staf.filter((x) => x.peran === peran && !x.keluargaId) : [];
   const stafId = calon.length ? calon[Math.floor(nextRandom(state) * calon.length)].id : undefined;
   state.kotakMasuk.push({ instanceId: `k${state.nomorUrut++}`, cardId: card.id, hariMasuk: state.hari, ...(stafId ? { stafId } : {}) });
   state.riwayatKartu[card.id] = state.hari;
+  if (card.grup) state.riwayatKartu[`grup:${card.grup}`] = state.hari;
   log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, card.judul)}.`);
 }
 
 // ---------------------------------------------------------------- aksi
+
+/**
+ * Lanjutkan desa yang sudah tamat (pensiun atau kalah) dengan kades baru. Bangunan, warga, pegawai, BUMDes,
+ * PT, dan perdes tetap; kas, reputasi, keluarga, dan relasi pribadi dengan pejabat mulai dari awal.
+ */
+export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: Gender): VillageState {
+  if (input.status === 'menjabat') throw new GameError('Desa ini masih punya kades yang menjabat.');
+  if (namaKades.trim().toLowerCase() === input.namaKades.trim().toLowerCase()) throw new GameError('Kades baru harus orang lain. Pakai nama yang berbeda dari kades sebelumnya.');
+  const state = structuredClone(input);
+  normalisasi(state);
+  const events: LogEntry[] = [];
+  const namaLama = state.namaKades;
+  lepasSemuaJabatanKeluarga(state);
+  state.status = 'menjabat';
+  state.namaKades = namaKades;
+  state.genderKades = gender ?? tebakGender(namaKades);
+  if ((state.hari % HARI_PER_PERIODE) === 0 || state.pilkades.at(-1)?.periode === state.periode) state.periode += 1;
+  state.kas = RULES.kasAwal;
+  state.integritas = 70;
+  state.popularitas = 50;
+  state.politik = buatPolitik(state);
+  state.politik.periodePemain = 1;
+  state.politik.mulaiHari = state.hari;
+  // pegawai yang dulu "kerabat" kades lama bukan kerabat kades baru
+  for (const x of state.staf ?? []) if (x.sifat.includes('kerabat')) x.sifat = x.sifat.filter((k) => k !== 'kerabat');
+  // misi mengikuti bulan berjalan (bulan saat desa tamat sempat terlewat)
+  siapkanMisi(state, Math.floor(state.hari / RULES.hariPerBulan) + 1);
+  siapkanMisiMingguan(state);
+  if (state.pajak) {
+    state.pajak.titipan = 0;
+    state.pajak.titipanPbb = 0;
+  }
+  const r = state.relasi;
+  if (r) {
+    for (const t of Object.values(r.tokoh)) t.relasi = 50;
+    r.bpd = 50;
+    r.wakil = null;
+    r.mosi = null;
+    r.kandidatWakil = [];
+  }
+  state.ringkasanPergi = undefined;
+  log(state, events, 'politik', `${namaKades} dilantik sebagai kades baru ${state.namaDesa}, meneruskan desa peninggalan ${namaLama}. Kas dan kepercayaan warga dimulai dari awal.`);
+  return state;
+}
 
 export function applyAction(input: VillageState, action: Action): StepResult {
   if (input.status !== 'menjabat') throw new GameError('Masa jabatan sudah berakhir. Mulai desa baru untuk bermain lagi.');
@@ -611,8 +703,21 @@ export function applyAction(input: VillageState, action: Action): StepResult {
   const events: LogEntry[] = [];
   const catat: Catat = (j, t) => log(state, events, j, t);
   const r = jalankanAksi(state, action, events, catat);
+  catatStatAksi(state, action);
   cekPencapaian(state, catat);
   return r;
+}
+
+/** Hitungan aksi untuk misi (dipanggil hanya kalau aksi berhasil). */
+function catatStatAksi(state: VillageState, a: Action): void {
+  if (a.type === 'rekrut_pegawai') tambahStat(state, 'rekrut');
+  else if (a.type === 'relasi' && a.aksi === 'sowan') tambahStat(state, 'sowan');
+  else if (a.type === 'bpd' && a.aksi === 'rapat_terbuka') tambahStat(state, 'rapatBpd');
+  else if (a.type === 'pajak' && a.aksi === 'setor') tambahStat(state, 'setorPajak');
+  else if (a.type === 'investasi' && a.jenis === 'cadangan' && a.arah === 'simpan') tambahStat(state, 'tabung');
+  else if (a.type === 'tanggapi_pidato') tambahStat(state, 'pidato');
+  else if (a.type === 'usaha' && (a.aksi === 'setujui' || a.aksi === 'csr' || a.aksi === 'pelicin')) tambahStat(state, 'izinUsaha');
+  else if (a.type === 'baca_berita') tambahStat(state, 'bacaBerita');
 }
 
 function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], catat: Catat): StepResult {
@@ -704,12 +809,12 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     bacaBerita(state);
     return { state, events };
   }
-  if (action.type === 'relasi') return politik(aturRelasi(state, action.aksi, action.tokoh), 'politik');
+  if (action.type === 'relasi') return politik(aturRelasi(state, action.aksi, action.tokoh, action.dana), 'politik');
   if (action.type === 'dukung_calon') return politik(dukungCalon(state, action.calonId, action.cara), 'politik');
-  if (action.type === 'bpd') return politik(aturBpd(state, action.aksi), 'politik');
+  if (action.type === 'bpd') return politik(aturBpd(state, action.aksi, action.dana), 'politik');
   if (action.type === 'perdes') return politik(aturPerdes(state, action.id, action.aksi), 'politik');
   if (action.type === 'mosi') return politik(responMosi(state, action.cara), 'politik');
-  if (action.type === 'wakil') return politik(aturWakil(state, action.aksi, action.id), 'politik');
+  if (action.type === 'wakil') return politik(aturWakil(state, action.aksi, action.id, action.dana), 'politik');
   if (action.type === 'pakai_dompet') return politik(pakaiDompet(state, action.tujuan, action.jumlah));
   if (action.type === 'hadapi_audit') return politik(action.pilihan === 'ngeles' ? bukaSidang(state) : selesaikanAudit(state, action.pilihan, catat));
   if (action.type === 'jawab_auditor') {
@@ -723,7 +828,8 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
   if (action.type === 'investasi') return politik(aturInvestasi(state, action.jenis, action.arah, action.jumlah), 'info');
   if (action.type === 'angkat_keluarga') return politik(angkatKeluarga(state, action.id, action.jabatan));
   if (action.type === 'pilih_penerus') return politik(pilihPenerus(state, action.id));
-  if (action.type === 'pilih_calon') return politik(pilihCalon(state, action.calon));
+  if (action.type === 'pilih_calon') return politik(pilihCalon(state, action.calon, action.lawanId));
+  if (action.type === 'dorong_jagoan') return politik(dorongJagoan(state));
   if (action.type === 'lobi_aturan') return politik(lobiAturan(state, action.jenis));
   if (action.type === 'nyaleg') return politik(nyaleg(state, catat));
   if (action.type === 'beli_aset') return politik(beliAset(state, action.id), 'info');
@@ -772,7 +878,7 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
       selesaiHari: state.hari + efekRekananProyek(state, Math.ceil(def.durasiHari * 0.6)),
       upgradeKe: built.level + 1,
     });
-    tambahStat(state, 'upgrade');
+    // misi "tingkatkan bangunan" baru dihitung saat upgrade selesai, bukan saat dimulai
     tambahXp(state, FITUR.xp.proyekMulai, catat);
     log(state, events, 'keputusan', `Mulai meningkatkan ${def.nama} ke level ${built.level + 1} (${formatRupiah(biaya)}).`);
     return { state, events };
@@ -785,23 +891,24 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     const tersedia = card ? opsiTersedia(state, card) : [];
     const opsi = tersedia.find((o) => o.id === action.opsiId);
     if (!card || !opsi) throw new GameError('Opsi keputusan tidak valid.');
-    const biaya = Math.max(0, -(opsi.effect.kas ?? 0));
-    const biayaTermurah = Math.min(...tersedia.map((o) => Math.max(0, -(o.effect.kas ?? 0))));
+    const efek = efekKartuBerskala(opsi.effect, skalaUangKartu(state, card, opsi));
+    const biaya = Math.max(0, -(efek.kas ?? 0));
+    const biayaTermurah = Math.min(...tersedia.map((o) => Math.max(0, -(efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)).kas ?? 0))));
     if (biaya > biayaTermurah && state.kas < biaya) {
       throw new GameError(`Kas tidak cukup untuk opsi ini. Butuh ${formatRupiah(biaya)}.`);
     }
     // isi nama pegawai tokoh sebelum efek (pegawainya bisa saja dipecat)
     const judulIsi = isiTokohStaf(state, pending.stafId, card.judul);
     const labelIsi = isiTokohStaf(state, pending.stafId, opsi.label);
-    applyEffect(state, opsi.effect);
-    efekKeStaf(state, pending.stafId, opsi.effect);
+    applyEffect(state, efek);
+    efekKeStaf(state, pending.stafId, efek);
     state.pilihanKartu[card.id] = opsi.id;
     if (opsi.risiko) {
       state.terjadwal.push({
         hari: state.hari + opsi.risiko.setelahHari,
         peluang: opsi.risiko.peluang,
         pesan: opsi.risiko.pesan,
-        effect: opsi.risiko.effect,
+        effect: efekKartuBerskala(opsi.risiko.effect, skalaUangKartu(state, card, opsi)),
       });
     }
     state.kotakMasuk = state.kotakMasuk.filter((k) => k !== pending);

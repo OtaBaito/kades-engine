@@ -209,14 +209,20 @@ test('relasi: perdes disahkan BPD dan berefek tiap bulan; wakil kades bisa dipil
 });
 
 test('relasi: BPD yang muak memakzulkan kades kalau bupati tidak melindungi', () => {
-  let s = advance(baru('makzul'), 100).state;
-  s.relasi!.mosi = { mulaiHari: s.hari, batasHari: s.hari + 2, respon: [], dilindungi: false };
-  s.relasi!.bpd = 0;
-  s.relasi!.tokoh.bupati.relasi = 30;
-  // tahan supaya BPD tidak pulih
-  s.popularitas = 0;
-  s = advance(s, 3).state;
-  assert.equal(s.status, 'dimakzulkan');
+  // peluang mosi lolos paling tinggi 90%, jadi uji beberapa desa: sebagian besar harus dimakzulkan
+  let dimakzulkan = 0;
+  for (let i = 0; i < 6; i++) {
+    let s = advance(baru(`makzul${i}`), 100).state;
+    s.relasi!.mosi = { mulaiHari: s.hari, batasHari: s.hari + 2, respon: [], dilindungi: false };
+    s.relasi!.bpd = 0;
+    s.relasi!.wakil = null;
+    s.relasi!.tokoh.bupati.relasi = 30;
+    // tahan supaya BPD tidak pulih
+    s.popularitas = 0;
+    s = advance(s, 3).state;
+    if (s.status === 'dimakzulkan') dimakzulkan++;
+  }
+  assert.ok(dimakzulkan >= 4, `hanya ${dimakzulkan} dari 6 desa dimakzulkan`);
   // dengan perlindungan bupati kades selamat
   let t = advance(baru('makzul2'), 100).state;
   t.relasi!.mosi = { mulaiHari: t.hari, batasHari: t.hari + 2, respon: [], dilindungi: false };

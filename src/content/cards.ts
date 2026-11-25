@@ -642,7 +642,7 @@ export const CARDS: CardDef[] = [
     "teksLanjutan": [
       {
         "flag": "bank_sampah",
-        "teks": "Sejak ada bank sampah, sungai lebih bersih. Tapi kiriman sampah dari desa hulu masih datang."
+        "teks": "Sejak kelompok bank sampah warga dibentuk, sungai lebih bersih. Tapi kiriman sampah dari desa hulu masih datang."
       }
     ],
     "kategori": "aduan",
@@ -651,7 +651,7 @@ export const CARDS: CardDef[] = [
     "opsi": [
       {
         "id": "bank_sampah",
-        "label": "Bentuk bank sampah desa",
+        "label": "Bentuk kelompok bank sampah warga",
         "syarat": {
           "tanpaFlag": "bank_sampah"
         },
@@ -670,7 +670,7 @@ export const CARDS: CardDef[] = [
       },
       {
         "id": "jual_daur",
-        "label": "Jual hasil bank sampah ke pengepul",
+        "label": "Jual hasil pilahan kelompok bank sampah ke pengepul",
         "syarat": {
           "flag": "bank_sampah"
         },
@@ -952,7 +952,7 @@ export const CARDS: CardDef[] = [
   {
     "id": "proyek_titipan",
     "judul": "Proyek Titipan",
-    "teks": "Seorang \"orang kabupaten\" menawarkan proyek gapura megah lewat kontraktor kenalannya. Kades dapat \"uang lelah\".",
+    "teks": "Seorang \"orang kabupaten\" menawarkan proyek gapura megah lewat kontraktor kenalannya. Biayanya dari kas desa, dan kades dijanjikan \"uang lelah\" Rp 10 jt.",
     "kategori": "peluang",
     "bobot": 2,
     "jedaHari": 90,
@@ -962,8 +962,13 @@ export const CARDS: CardDef[] = [
         "label": "Terima, gapura juga bagus buat foto",
         "effect": {
           "kas": -60000000,
+          "dompet": 10000000,
           "integritas": -15,
-          "popularitas": 3
+          "kecurigaan": 8,
+          "popularitas": 3,
+          "setFlag": [
+            "gapura_titipan"
+          ]
         },
         "risiko": {
           "setelahHari": 45,
@@ -1007,10 +1012,11 @@ export const CARDS: CardDef[] = [
     "opsi": [
       {
         "id": "terima",
-        "label": "Terima, masuk kas desa saja",
+        "label": "Terima, catat sebagai sumbangan ke kas desa",
         "effect": {
           "kas": 25000000,
-          "integritas": -12
+          "integritas": -5,
+          "kecurigaan": 4
         },
         "risiko": {
           "setelahHari": 30,
@@ -1027,7 +1033,7 @@ export const CARDS: CardDef[] = [
         "label": "Kantongi sendiri, tidak usah lewat kas",
         "effect": {
           "dompet": 25000000,
-          "integritas": -8,
+          "integritas": -12,
           "kecurigaan": 14
         },
         "risiko": {
@@ -1578,7 +1584,7 @@ export const CARDS: CardDef[] = [
   {
     "id": "staf_naik_honor",
     "judul": "Perangkat Desa Minta Naik Honor",
-    "teks": "Sekdes mewakili perangkat desa: honor belum naik tiga tahun, padahal harga beras sudah dua kali naik.",
+    "teks": "Sekdes mewakili perangkat desa: honor belum pernah naik sejak kades dilantik, padahal harga beras sudah dua kali naik.",
     "kategori": "politik",
     "bobot": 2,
     "jedaHari": 120,
@@ -1793,7 +1799,7 @@ export const CARDS: CardDef[] = [
   {
     "id": "sifat_sering_izin",
     "judul": "{nama} Minta Izin Seminggu Lagi",
-    "teks": "{nama} ({peran}) kembali minta izin, katanya ada urusan keluarga di luar kota. Ini sudah yang ketiga bulan ini.",
+    "teks": "{nama} ({peran}) kembali minta izin, katanya ada urusan keluarga di luar kota. Ini bukan pertama kalinya.",
     "kategori": "politik",
     "bobot": 2,
     "jedaHari": 60,
@@ -2034,7 +2040,7 @@ export const CARDS: CardDef[] = [
   {
     "id": "pgr_limbah",
     "judul": "Kali Berbusa Gara-gara Limbah Pabrik",
-    "teks": "Air kali mendadak berbusa dan berbau. Ikan mati mengapung. Warga menunjuk saluran buangan pabrik tekstil.",
+    "teks": "Air kali mendadak berbusa dan berbau. Ikan mati mengapung. Warga menunjuk saluran buangan pabrik lama di pinggir desa.",
     "kategori": "bencana",
     "bobot": 4.5,
     "jedaHari": 80,
@@ -2444,13 +2450,14 @@ export const CARDS: CardDef[] = [
   {
     "id": "arc_kas_1",
     "judul": "Brankas Kantor Kosong",
-    "teks": "Pagi ini brankas kantor ditemukan terbuka. Uang tunai Rp 40 jt raib. Kaur keuangan tidak masuk kerja dan ponselnya mati.",
+    "teks": "Pagi ini brankas kantor ditemukan terbuka. Uang tunai Rp 40 jt raib. Kaur keuangan, {nama}, tidak masuk kerja dan ponselnya mati.",
     "kategori": "politik",
     "bobot": 1.5,
     "sekali": true,
     "bersambung": true,
     "syarat": {
-      "minHari": 40
+      "minHari": 40,
+      "butuhPegawai": "bendahara"
     },
     "opsi": [
       {
@@ -2462,6 +2469,7 @@ export const CARDS: CardDef[] = [
           "setFlag": [
             "kas_dilaporkan"
           ],
+          "stafKeluar": true,
           "jadwalKartu": {
             "cardId": "arc_kas_2",
             "setelahHari": 5
@@ -2476,6 +2484,7 @@ export const CARDS: CardDef[] = [
           "kepuasan": {
             "tokoh": 1
           },
+          "stafKeluar": true,
           "jadwalKartu": {
             "cardId": "arc_kas_2",
             "setelahHari": 3
@@ -2492,6 +2501,7 @@ export const CARDS: CardDef[] = [
           "setFlag": [
             "kas_ditutupi"
           ],
+          "stafKeluar": true,
           "jadwalKartu": {
             "cardId": "arc_kas_2",
             "setelahHari": 6
