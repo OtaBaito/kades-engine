@@ -19,7 +19,7 @@ import { bacaBerita, harianBerita, potongEfisiensi, tanggapiPidato } from './ber
 import { aturUsaha, bulananUsaha, harianUsaha } from './usaha.ts';
 import { aturBpd, aturPerdes, aturRelasi, aturWakil, bulananRelasi, dukungCalon, faktorTermin, harianRelasi, perdesAktif, responMosi } from './relasi.ts';
 import { efekRekananProyek, kontrakRekanan, maksProyek } from './rekanan.ts';
-import { berhentikanStaf, cariKandidat, efekKeStaf, isiTokohStaf, pegawaiKeluar, segarkanKandidat, upgradeKantor } from './kepegawaian.ts';
+import { berhentikanStaf, cariKandidat, efekKeStaf, isiTokohStaf, pegawaiKeluar, segarkanKandidat, syncPegawai, upgradeKantor } from './kepegawaian.ts';
 import { tebakGender,
   POLITIK,
   aksiGelap,
@@ -637,7 +637,7 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (!awal && kandidat.length < 5 && nextRandom(state) > kandidat.length / 5) return;
   const card = pickWeighted(state, kandidat, (c) => c.bobot);
   if (!card) return;
-  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(card.jedaHari * (0.5 + nextRandom(state)));
+  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(card.jedaHari * (1 + 0.5 * nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita
   const sifat = card.syarat?.butuhSifat;
   const peran = card.syarat?.butuhPegawai;
@@ -953,6 +953,13 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
 
 export function applyEffect(state: VillageState, e: Effect): void {
   if (e.kas) addKas(state, e.kas);
+  if (e.pecatPeran) {
+    const x = (state.staf ?? []).find((st) => st.peran === e.pecatPeran && !st.keluargaId);
+    if (x) {
+      state.staf = state.staf.filter((st) => st !== x);
+      syncPegawai(state);
+    }
+  }
   if (e.semuaKepuasan) addAllKepuasan(state, e.semuaKepuasan);
   if (e.kepuasan) {
     for (const [g, v] of Object.entries(e.kepuasan) as [GroupId, number][]) {

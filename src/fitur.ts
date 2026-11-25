@@ -10,7 +10,7 @@ import { CARDS } from './content/cards.ts';
 import { LANJUTAN } from './content/lanjutan.ts';
 import { buatPolitik } from './politik.ts';
 import { BASIS_PENDUDUK, jiwaKelompok, totalPenduduk } from './penduduk.ts';
-import { gajiStaf, harianSifat, kekuatanPeran, migrasiStaf, rekrutKandidat } from './kepegawaian.ts';
+import { gajiStaf, harianSifat, infoKantor, kekuatanPeran, migrasiStaf, rekrutKandidat } from './kepegawaian.ts';
 import { arus } from './arus.ts';
 import { GROUPS } from './content/groups.ts';
 import { PROJECT_BY_ID } from './content/projects.ts';
@@ -327,7 +327,8 @@ function misiCocok(s: VillageState, jenis: StatKey, hindari: Set<StatKey>): bool
   if (jenis === 'upgrade' && !s.proyekSelesai.some((b) => b.level < 5)) return false;
   if (jenis === 'dekorasi' && DEKORASI.every((d) => s.dekorasi.includes(d.id) || (d.minLevel ?? 1) > s.level)) return false;
   if (jenis === 'bumdes' && BUMDES.every((b) => (s.bumdes[b.id] ?? 0) >= b.maksLevel)) return false;
-  if (jenis === 'rekrut' && !PEGAWAI.some((p) => (p.minLevel ?? 1) <= s.level && !(s.staf ?? []).some((x) => x.peran === p.id))) return false;
+  // isi kursi kosong hanya masuk akal kalau ada jabatan kosong DAN masih ada meja di kantor
+  if (jenis === 'rekrut' && (infoKantor(s).kapasitas <= (s.staf ?? []).length || !PEGAWAI.some((p) => (p.minLevel ?? 1) <= s.level && !(s.staf ?? []).some((x) => x.peran === p.id)))) return false;
   if (jenis === 'setorPajak' && !(s.pajak?.titipan && s.pajak.titipan > 0)) return false;
   if (jenis === 'bacaBerita' && !(s.nasional?.berita?.length)) return false;
   return true;

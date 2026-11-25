@@ -67,7 +67,10 @@ export function describeEffect(e: Effect): string[] {
   if (e.pemasukanBulanan) out.push(`Pemasukan bulanan +${formatRupiah(e.pemasukanBulanan)}`);
   if (e.dompet) out.push(`Uang pribadi kades ${e.dompet > 0 ? '+' : ''}${formatRupiah(e.dompet)}`);
   if (e.kecurigaan) out.push(e.kecurigaan > 0 ? 'Gosip dan kecurigaan naik' : 'Gosip mereda');
+  if (e.setFlag?.includes('restu_bupati')) out.push('Relasi bupati +10');
+  if (e.setFlag?.includes('dimusuhi_bupati')) out.push('Relasi bupati -10');
   if (e.stafKeluar) out.push('Pegawai ini keluar dari kantor desa');
+  if (e.pecatPeran) out.push('Pegawai yang bersangkutan diberhentikan');
   if (e.stafKinerja) out.push(`Kinerja pegawai ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`);
   if (e.stafGajiX) out.push(`Gaji pegawai ${e.stafGajiX > 1 ? 'naik' : 'turun'} ${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`);
   if (e.stafHapusSifat) out.push(`Sifat "${SIFAT[e.stafHapusSifat]?.nama ?? e.stafHapusSifat}" hilang`);
@@ -96,6 +99,8 @@ export function effectDetails(e: Effect): EfekRinci[] {
   if (e.pemasukanBulanan) out.push({ jenis: 'pemasukan', nilai: e.pemasukanBulanan });
   if (e.dompet) out.push({ jenis: 'dompet', nilai: e.dompet });
   if (e.kecurigaan) out.push({ jenis: 'gosip', nilai: e.kecurigaan > 0 ? 1 : -1 });
+  if (e.setFlag?.includes('restu_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati +10', nilai: 1 });
+  if (e.setFlag?.includes('dimusuhi_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati -10', nilai: -1 });
   if (e.stafKeluar) out.push({ jenis: 'staf', teks: 'Keluar', nilai: -1 });
   if (e.stafKinerja) out.push({ jenis: 'staf', teks: `Kinerja ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`, nilai: e.stafKinerja });
   if (e.stafGajiX) out.push({ jenis: 'staf', teks: `Gaji ${e.stafGajiX > 1 ? '+' : '-'}${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`, nilai: 1 - e.stafGajiX });

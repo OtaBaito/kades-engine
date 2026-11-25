@@ -326,7 +326,7 @@ export const CARDS: CardDef[] = [
     ],
     "kategori": "usulan",
     "bobot": 2,
-    "jedaHari": 90,
+    "jedaHari": 300,
     "opsi": [
       {
         "id": "meriah",
@@ -823,8 +823,8 @@ export const CARDS: CardDef[] = [
   },
   {
     "id": "stunting",
-    "judul": "Angka Balita Kurang Gizi Naik",
-    "teks": "Bidan desa melaporkan beberapa balita kurang gizi. Ia minta program makanan tambahan.",
+    "judul": "Bidan Temukan Balita Kurang Gizi",
+    "teks": "Saat penimbangan bulanan, bidan desa menemukan beberapa balita dengan berat badan di bawah garis merah. Ia minta program makanan tambahan sebelum jumlahnya bertambah.",
     "kategori": "aduan",
     "bobot": 2,
     "jedaHari": 60,
@@ -1133,7 +1133,8 @@ export const CARDS: CardDef[] = [
     "bobot": 1,
     "sekali": true,
     "syarat": {
-      "minHari": 90
+      "minHari": 90,
+      "tanpaProyek": "wisata_air"
     },
     "opsi": [
       {
@@ -1716,7 +1717,7 @@ export const CARDS: CardDef[] = [
     "teks": "{nama} ({peran}) menawarkan \"jasa pengurusan\" ke kontraktor proyek desa. Kontraktornya mengadu ke kades.",
     "kategori": "politik",
     "bobot": 2.5,
-    "jedaHari": 75,
+    "jedaHari": 150,
     "syarat": {
       "butuhSifat": "main_proyek"
     },
@@ -1756,7 +1757,7 @@ export const CARDS: CardDef[] = [
     "teks": "Warga yang mau mengurus surat menemukan {nama} ({peran}) tertidur di meja. Fotonya sudah beredar di grup RT.",
     "kategori": "aduan",
     "bobot": 2.5,
-    "jedaHari": 60,
+    "jedaHari": 150,
     "syarat": {
       "butuhSifat": "pemalas"
     },
@@ -1802,7 +1803,7 @@ export const CARDS: CardDef[] = [
     "teks": "{nama} ({peran}) kembali minta izin, katanya ada urusan keluarga di luar kota. Ini bukan pertama kalinya.",
     "kategori": "politik",
     "bobot": 2,
-    "jedaHari": 60,
+    "jedaHari": 150,
     "syarat": {
       "butuhSifat": "sering_izin"
     },
@@ -2580,7 +2581,8 @@ export const CARDS: CardDef[] = [
         "effect": {
           "kas": 25000000,
           "integritas": 3,
-          "popularitas": 3
+          "popularitas": 3,
+          "pecatPeran": "bendahara"
         }
       },
       {
@@ -2591,7 +2593,8 @@ export const CARDS: CardDef[] = [
           "kepuasan": {
             "tokoh": 3
           },
-          "pemasukanBulanan": 1000000
+          "pemasukanBulanan": 1000000,
+          "pecatPeran": "bendahara"
         }
       },
       {
@@ -2605,7 +2608,8 @@ export const CARDS: CardDef[] = [
           },
           "indeks": {
             "sosial": 3
-          }
+          },
+          "pecatPeran": "bendahara"
         }
       }
     ]

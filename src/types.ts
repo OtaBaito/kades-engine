@@ -33,6 +33,8 @@ export interface Effect {
   /** Jadwalkan babak berikutnya dari cerita bersambung. */
   jadwalKartu?: { cardId: string; setelahHari: number };
   stafKeluar?: boolean;
+  /** Pegawai pertama di jabatan ini keluar dari kantor (cerita yang tidak punya tokoh pegawai tertentu). */
+  pecatPeran?: string;
   stafKinerja?: number;
   stafGajiX?: number;
   stafTambahSifat?: string;

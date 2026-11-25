@@ -349,11 +349,12 @@ export function aturUsaha(s: VillageState, id: string, aksi: AksiUsaha): string 
     us.tawaran = null;
     us.jeda[id] = s.hari + 240;
     const swasembada = d.lahanSawah && efekAktif(s, 'swasembada');
-    if (!swasembada) rel.tokoh.bupati.relasi = clamp(rel.tokoh.bupati.relasi - (d.saatSetuju?.relasiBupati ? 6 : 2));
+    const turun = swasembada ? 0 : d.saatSetuju?.relasiBupati ? 6 : 2;
+    rel.tokoh.bupati.relasi = clamp(rel.tokoh.bupati.relasi - turun);
     s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 2);
     if (d.id === 'tambang') s.kepuasan.petani = clamp(s.kepuasan.petani + 3);
     beritaDesa(s, `Kades Tolak Investasi ${d.nama}`, `Rencana ${d.bidang.toLowerCase()} batal. Sebagian warga lega, anak muda kecewa kehilangan peluang kerja.`);
-    return `Pengajuan ${d.nama} ditolak.${swasembada ? ' Di tengah semangat swasembada, bupati tidak bisa protes.' : ' Bupati menganggap desamu kurang ramah investasi.'}`;
+    return `Pengajuan ${d.nama} ditolak.${swasembada ? ' Di tengah semangat swasembada, bupati tidak bisa protes.' : ` Bupati menganggap desamu kurang ramah investasi. (relasi bupati -${turun})`} (pemuda -2)`;
   }
 
   const blok = terblokir(s, d);
