@@ -227,6 +227,15 @@ export function harianPolitik(s: VillageState, catat: Catat): void {
       selesaikanAudit(s, 'pasrah', catat);
     }
   }
+  // laporan politik uang lawan ke panitia pengawas
+  if (s.flags.includes('lapor_panwas')) {
+    s.flags = s.flags.filter((f) => f !== 'lapor_panwas');
+    const l = p.kampanye?.lawan.length ? p.kampanye.lawan.reduce((a, b) => (b.kekuatan > a.kekuatan ? b : a)) : undefined;
+    if (l) {
+      l.kekuatan = clamp(l.kekuatan - 6);
+      catat('politik', `Panitia pengawas menegur ${l.nama} atas pembagian sembako. Warga mulai ragu pada kubunya.`);
+    }
+  }
   // manuver calon lawan selama kampanye
   if (p.kampanye && p.kampanye.lawan.length && nextRandom(s) < 0.06) {
     const l = pilih(s, p.kampanye.lawan);
@@ -234,6 +243,7 @@ export function harianPolitik(s: VillageState, catat: Catat): void {
     if (r < 0.4) {
       l.kekuatan = clamp(l.kekuatan + 3);
       catat('politik', `${l.nama} (${l.kubu}) bagi-bagi sembako keliling dusun.`);
+      if (!s.flags.includes('lawan_sembako')) s.flags = [...s.flags, 'lawan_sembako'];
     } else if (r < 0.7) {
       s.popularitas = clamp(s.popularitas - 2);
       catat('politik', `Pendukung ${l.nama} menyebar isu miring soal kades di grup warga.`);
@@ -345,14 +355,17 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
   catat('politik', `Masa kampanye pilkades dimulai. Lawan: ${lawan.map((l) => `${l.nama} (${l.kubu})`).join(' dan ')}. ${sisa}`);
 }
 
-/** Porsi suara satu kelompok untuk calon kita (tanpa unsur acak). */
+/** Angka desimal gaya Indonesia (38,7). */
+const koma = (n: number) => String(n).replace('.', ',');
+
 /** Porsi suara maksimum satu kelompok: selalu ada warga yang memilih lawan. */
 const BATAS_PORSI = 0.85;
 
+/** Porsi suara satu kelompok untuk calon kita (tanpa unsur acak). */
 function porsiSuara(s: VillageState, g: GroupId, m: AnggotaKeluarga | undefined, lawanTerkuat: number, bonus: number): number {
   const integritas = ((s.integritas - 50) / 250) * (g === 'tokoh' ? 3 : 1);
   const dasar = m
-    ? 0.3 + (s.kepuasan[g] - 50) / 150 + (s.popularitas - 50) / 350 + (m.elektabilitas - 40) / 110 + (m.kompetensi - 50) / 400 + integritas
+    ? 0.36 + (s.kepuasan[g] - 50) / 130 + (s.popularitas - 50) / 300 + (m.elektabilitas - 40) / 150 + (m.kompetensi - 50) / 400 + integritas
     : 0.36 + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
   // penantang kuat benar-benar menggerus suara: kades populer pun harus tetap merawat warga di tahun pilkades
   return dasar + bonus / 100 - (lawanTerkuat - 50) / 80;
@@ -437,16 +450,17 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
   const persen = Math.round((suara / total) * 1000) / 10;
   const menang = persen > 50;
   p.kampanye = null;
+  s.flags = s.flags.filter((f) => f !== 'lawan_sembako' && f !== 'lapor_panwas');
   if (!menang) {
     s.status = 'kalah';
-    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${persen}% suara.`);
+    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${koma(persen)}% suara.`);
     return { menang, persen, perKelompok };
   }
   if (m) {
     p.pemimpin = m.id;
     p.periodeKeluarga[m.id] = (p.periodeKeluarga[m.id] ?? 0) + 1;
     m.jabatan = 'Kepala Desa';
-    catat('politik', `${m.nama} menang ${persen}% suara dan dilantik jadi kades. Kamu kini mengatur dari belakang layar.`);
+    catat('politik', `${m.nama} menang ${koma(persen)}% suara dan dilantik jadi kades. Kamu kini mengatur dari belakang layar.`);
   } else {
     if (p.pemimpin !== 'pemain') {
       const lama = p.keluarga.find((x) => x.id === p.pemimpin);
@@ -455,7 +469,7 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
     p.pemimpin = 'pemain';
     p.namaJagoan = undefined;
     p.periodePemain += 1;
-    catat('politik', `Menang pilkades dengan ${persen}% suara. Periode ke-${p.periodePemain} dimulai.`);
+    catat('politik', `Menang pilkades dengan ${koma(persen)}% suara. Periode ke-${p.periodePemain} dimulai.`);
   }
   return { menang, persen, perKelompok };
 }

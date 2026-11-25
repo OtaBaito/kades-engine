@@ -167,7 +167,7 @@ export function buildView(state: VillageState) {
       kepuasan: Math.round(state.kepuasan[g.id]),
       kebutuhan: g.kebutuhan.map((tag) => ({ tag, terpenuhi: tersedia.has(tag) })),
     })),
-    kotakMasuk: state.kotakMasuk.map((k) => {
+    kotakMasuk: (state.status === 'menjabat' ? state.kotakMasuk : []).map((k) => {
       const card = CARD_BY_ID.get(k.cardId)!;
       const isi = (t: string) => hindariNamaKades(state.namaKades, isiTokohStaf(state, k.stafId, t));
       const staf = k.stafId ? (state.staf ?? []).find((x) => x.id === k.stafId) : undefined;

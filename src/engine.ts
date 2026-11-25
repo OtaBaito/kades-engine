@@ -250,6 +250,8 @@ export function advance(input: VillageState, days: number, opsi: { tungguKrisis?
       if (state.status === 'menjabat') startOfMonth(state, events);
     }
   }
+  // masa jabatan berakhir: surat yang belum diputuskan tidak bisa diputuskan lagi
+  if (state.status !== 'menjabat') state.kotakMasuk = [];
   return { state, events };
 }
 
@@ -606,6 +608,8 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
     // variasi lokasi dari templat dan masalah yang sama (mis. "Angin Kencang Melanda RT 03" lalu "RT 07")
     const varian = state.riwayatKartu[`varian:${card.id.replace(/(_\d+)+$/, '')}`];
     if (card.id.startsWith('acak_') && varian !== undefined && state.hari - varian < 300) return false;
+    const warga = card.warga ? state.riwayatKartu[`warga:${card.warga}`] : undefined;
+    if (warga !== undefined && state.hari - warga < 60) return false;
     if (state.kotakMasuk.some((k) => k.cardId.startsWith(`acak_${card.grup}_`))) return false;
   }
   if (s.minHari !== undefined && state.hari < s.minHari + (state.geserHari?.[card.id] ?? 0)) return false;
@@ -698,7 +702,7 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (!awal && kandidat.length < 5 && nextRandom(state) > kandidat.length / 5) return;
   const card = pickWeighted(state, kandidat, (c) => c.bobot);
   if (!card) return;
-  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(Math.max(card.jedaHari, card.syarat?.bulanTahun ? 0 : 240) * (1 + 0.5 * nextRandom(state)));
+  if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(Math.max(card.jedaHari, card.syarat?.bulanTahun || card.kategori === 'kampanye' ? 0 : 240) * (1 + 0.5 * nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita
   const calon = calonTokoh(state, card);
   const stafId = calon.length ? calon[Math.floor(nextRandom(state) * calon.length)].id : undefined;
@@ -707,6 +711,7 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (card.grup) {
     state.riwayatKartu[`grup:${card.grup}`] = state.hari;
     state.riwayatKartu[`judul:${card.judul}`] = state.hari;
+    if (card.warga) state.riwayatKartu[`warga:${card.warga}`] = state.hari;
     if (card.id.startsWith('acak_')) state.riwayatKartu[`varian:${card.id.replace(/(_\d+)+$/, '')}`] = state.hari;
   }
   log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, judulKartu(state, card))}.`);

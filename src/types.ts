@@ -112,6 +112,8 @@ export interface CardDef {
   bersambung?: boolean;
   /** Kartu sejenis (mis. variasi templat acak): setelah satu muncul, yang lain menunggu jedaGrup hari. */
   grup?: string;
+  /** Nama warga di kartu acak: warga yang sama tidak tampil di dua cerita berbeda dalam waktu dekat. */
+  warga?: string;
   opsi: CardOption[];
 }
 

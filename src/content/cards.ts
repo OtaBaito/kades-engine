@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 52 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 53 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardDef } from '../types.ts';
 
@@ -1542,6 +1542,58 @@ export const CARDS: CardDef[] = [
         "effect": {
           "integritas": 6,
           "popularitas": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "lapor_sembako",
+    "judul": "Lawan Bagi-bagi Sembako",
+    "teks": "Warga mengirim foto: tim lawan membagikan paket sembako berstiker nama calon. Tim suksesmu geram.",
+    "kategori": "kampanye",
+    "bobot": 8,
+    "sekali": false,
+    "jedaHari": 20,
+    "syarat": {
+      "flag": "lawan_sembako"
+    },
+    "opsi": [
+      {
+        "id": "lapor",
+        "label": "Laporkan ke panitia pengawas dengan bukti foto",
+        "effect": {
+          "integritas": 2,
+          "kepuasan": {
+            "tokoh": 2
+          },
+          "setFlag": [
+            "lapor_panwas"
+          ],
+          "hapusFlag": [
+            "lawan_sembako"
+          ]
+        }
+      },
+      {
+        "id": "balas",
+        "label": "Balas dengan bagi sembako juga",
+        "effect": {
+          "dompet": -10000000,
+          "popularitas": 3,
+          "integritas": -6,
+          "kecurigaan": 6,
+          "hapusFlag": [
+            "lawan_sembako"
+          ]
+        }
+      },
+      {
+        "id": "biar",
+        "label": "Biarkan, warga bisa menilai sendiri",
+        "effect": {
+          "hapusFlag": [
+            "lawan_sembako"
+          ]
         }
       }
     ]
