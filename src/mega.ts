@@ -183,6 +183,9 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
       catat('buruk', `${nama} MANGKRAK: kas tidak cukup membayar tahap berikutnya (${Math.round(bayar / JT)} jt). Pekerja pulang, warga mulai bertanya ke mana uangnya.`);
     }
   }
+  // kartu "percepat" hanya masuk akal kalau proyek masih lama selesai
+  const jauh = !m.mangkrak && m.selesaiHari - s.hari > 60;
+  s.flags = jauh ? [...new Set([...(s.flags ?? []), 'mega_jauh'])] : (s.flags ?? []).filter((f) => f !== 'mega_jauh');
   if (m.mangkrak) {
     // proyek berhenti: tanggal selesai ikut mundur, warga makin kesal tiap bulan
     m.selesaiHari += 1;
@@ -192,7 +195,7 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   if (s.hari >= m.selesaiHari && m.dibayar >= total) {
     s.mega = null;
     s.megaSelesai = [...(s.megaSelesai ?? []), def.id];
-    s.flags = (s.flags ?? []).filter((f) => f !== 'mega_berjalan');
+    s.flags = (s.flags ?? []).filter((f) => f !== 'mega_berjalan' && f !== 'mega_jauh');
     for (const [k, v] of Object.entries(def.indeks) as [IndexId, number][]) s.indeks[k] = Math.min(100, s.indeks[k] + Math.round(v * f));
     for (const [g, v] of Object.entries(def.target) as [GroupId, number][]) s.kepuasan[g] = Math.min(100, s.kepuasan[g] + Math.round(v * f));
     s.pemasukanTambahanBulanan += def.pemasukanBulanan;
@@ -314,7 +317,7 @@ export const KARTU_MEGA: CardDef[] = [
     kategori: 'peluang',
     bobot: 2,
     jedaHari: 150,
-    syarat: { flag: 'mega_berjalan' },
+    syarat: { flag: 'mega_jauh' },
     opsi: [
       { id: 'lembur', label: 'Setuju lembur, kas desa tanggung', effect: { kas: -60 * JT, setFlag: ['restu_bupati'], popularitas: 2 } },
       { id: 'tolak', label: 'Tetap sesuai jadwal, kualitas nomor satu', effect: { integritas: 2, setFlag: ['dimusuhi_bupati'] } },

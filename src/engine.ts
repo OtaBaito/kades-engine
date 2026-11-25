@@ -604,8 +604,8 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
     const g = state.riwayatKartu[`grup:${card.grup}`];
     if (g !== undefined && state.hari - g < (JEDA_KHUSUS[card.grup] ?? JEDA_GRUP)) return false;
     // variasi lokasi dari templat dan masalah yang sama (mis. "Angin Kencang Melanda RT 03" lalu "RT 07")
-    const varian = state.riwayatKartu[`varian:${card.id.replace(/_\d+$/, '')}`];
-    if (card.id.startsWith('acak_') && varian !== undefined && state.hari - varian < 360) return false;
+    const varian = state.riwayatKartu[`varian:${card.id.replace(/(_\d+)+$/, '')}`];
+    if (card.id.startsWith('acak_') && varian !== undefined && state.hari - varian < 300) return false;
     if (state.kotakMasuk.some((k) => k.cardId.startsWith(`acak_${card.grup}_`))) return false;
   }
   if (s.minHari !== undefined && state.hari < s.minHari + (state.geserHari?.[card.id] ?? 0)) return false;
@@ -707,7 +707,7 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   if (card.grup) {
     state.riwayatKartu[`grup:${card.grup}`] = state.hari;
     state.riwayatKartu[`judul:${card.judul}`] = state.hari;
-    if (card.id.startsWith('acak_')) state.riwayatKartu[`varian:${card.id.replace(/_\d+$/, '')}`] = state.hari;
+    if (card.id.startsWith('acak_')) state.riwayatKartu[`varian:${card.id.replace(/(_\d+)+$/, '')}`] = state.hari;
   }
   log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, judulKartu(state, card))}.`);
 }

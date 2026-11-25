@@ -2423,7 +2423,7 @@ export const CARDS: CardDef[] = [
     "bobot": 2,
     "jedaHari": 150,
     "syarat": {
-      "flag": "mega_berjalan"
+      "flag": "mega_jauh"
     },
     "opsi": [
       {
