@@ -2043,8 +2043,8 @@ export const CARDS: CardDef[] = [
     "judul": "Kali Berbusa Gara-gara Limbah Pabrik",
     "teks": "Air kali mendadak berbusa dan berbau. Ikan mati mengapung. Warga menunjuk saluran buangan pabrik lama di pinggir desa.",
     "kategori": "bencana",
-    "bobot": 4.5,
-    "jedaHari": 80,
+    "bobot": 3.5,
+    "jedaHari": 240,
     "syarat": {
       "butuhCorak": [
         "pinggiran"

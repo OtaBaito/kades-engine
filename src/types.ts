@@ -55,7 +55,7 @@ export interface CardOption {
   /** Risiko tersembunyi: tidak ditampilkan di UI/MCP. */
   risiko?: DelayedEffect;
   /** Opsi hanya muncul kalau syarat ini terpenuhi (mis. keputusan sebelumnya sudah memasang kamera). */
-  syarat?: { flag?: string; tanpaFlag?: string; butuhProyek?: string; tanpaProyek?: string };
+  syarat?: { flag?: string; tanpaFlag?: string; butuhProyek?: string; tanpaProyek?: string; tanpaPerdes?: string };
 }
 
 export type CardCategory = 'aduan' | 'usulan' | 'politik' | 'bencana' | 'peluang' | 'kampanye';
@@ -83,6 +83,8 @@ export interface CardCondition {
   butuhCorak?: TipeDesa[];
   /** Kartu hanya muncul kalau rata-rata kepuasan warga di bawah angka ini (mis. demo karena tidak didengar). */
   maxRataKepuasan?: number;
+  /** Kartu tidak muncul selama perdes ini berlaku (mis. jual tanah kas desa saat perlindungan sawah). */
+  tanpaPerdes?: string;
 }
 
 export interface CardDef {

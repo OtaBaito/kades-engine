@@ -316,7 +316,11 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
     return;
   }
   addKas(state, jumlah, 'Dana desa');
-  log(state, events, 'baik', `Termin dana desa cair: ${formatRupiah(jumlah)}.`);
+  // jelaskan besarnya termin: porsi tahunan tiap termin berbeda, dan potongan/tambahan tercatat di atas
+  const dasar = Math.round(RULES.danaDesaTahunan * persen);
+  const selisih = jumlah - dasar;
+  const ket = selisih === 0 ? '' : selisih > 0 ? `, ditambah ${formatRupiah(selisih)}` : `, dipotong ${formatRupiah(-selisih)}`;
+  log(state, events, 'baik', `Termin dana desa cair: ${formatRupiah(jumlah)} (jatah termin ini ${Math.round(persen * 100)}% dari dana desa tahunan = ${formatRupiah(dasar)}${ket}).`);
 }
 
 /** Nama bangunan wajib yang belum selesai dibangun. */
@@ -560,6 +564,7 @@ export function opsiTersedia(state: VillageState, card: CardDef): CardDef['opsi'
     if (s.tanpaFlag && hasFlag(state, s.tanpaFlag)) return false;
     if (s.butuhProyek && !isBuilt(state, s.butuhProyek)) return false;
     if (s.tanpaProyek && isBuilt(state, s.tanpaProyek)) return false;
+    if (s.tanpaPerdes && (state.relasi?.perdes ?? []).includes(s.tanpaPerdes)) return false;
     return true;
   });
 }
@@ -600,6 +605,7 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   if (s.butuhPegawai && !(state.pegawai ?? []).includes(s.butuhPegawai)) return false;
   if (s.butuhSifat && !(state.staf ?? []).some((x) => x.sifat.includes(s.butuhSifat!) && (!s.peranCocok || s.peranCocok.includes(x.peran)))) return false;
   if (s.butuhCorak && !s.butuhCorak.includes(state.tipeDesa ?? 'agraris')) return false;
+  if (s.tanpaPerdes && (state.relasi?.perdes ?? []).includes(s.tanpaPerdes)) return false;
   if (s.maxRataKepuasan !== undefined) {
     const v = Object.values(state.kepuasan);
     if (v.reduce((t, x) => t + x, 0) / Math.max(1, v.length) >= s.maxRataKepuasan) return false;
@@ -623,7 +629,8 @@ export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label
 }
 
 export function efekKartuBerskala<E extends { kas?: number }>(e: E, f: number): E {
-  if (f === 1 || !e.kas) return e;
+  // hanya biaya yang ikut membesar; uang masuk (harga jual, sumbangan) tetap sesuai cerita kartu
+  if (f === 1 || !e.kas || e.kas > 0) return e;
   return { ...e, kas: Math.round((e.kas * f) / 100_000) * 100_000 };
 }
 

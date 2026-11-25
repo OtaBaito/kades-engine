@@ -1017,7 +1017,7 @@ export function viewRelasi(s: VillageState) {
         }
       : null,
     risikoMosi: r.bpd < 30 ? 'tinggi' : r.bpd < 40 ? 'waspada' : 'aman',
-    wakil: r.wakil ? { ...r.wakil, ...latarView(r.wakil.latar), membelot: wakilMembelot(r) } : null,
+    wakil: r.wakil ? { ...r.wakil, loyalitas: Math.round(r.wakil.loyalitas), ambisi: Math.round(r.wakil.ambisi ?? 0), ...latarView(r.wakil.latar), membelot: wakilMembelot(r) } : null,
     kandidatWakil: r.kandidatWakil.map((k) => ({ ...k, ...latarView(k.latar) })),
     tunjanganWakil: TUNJANGAN_WAKIL,
     jedaWakil: { cari: sisa('wakil:cari'), rangkul: sisa('wakil:rangkul'), ganti: sisa('wakil:ganti') },
