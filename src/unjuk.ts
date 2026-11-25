@@ -4,6 +4,7 @@
 // setiap hari selama berlangsung, dan makin panas kalau dibiarkan sampai akhirnya ricuh.
 // Kades bisa menemui massa, memenuhi tuntutan, atau membubarkan dengan polisi, tentara, atau ormas.
 // Semua acak memakai RNG ber-seed di state (deterministik).
+import { beritaDesa } from './berita.ts';
 import { faktorPemicuUnjuk, namaTokoh, relasiAparat } from './relasi.ts';
 import { arus } from './arus.ts';
 import { GROUPS } from './content/groups.ts';
@@ -57,6 +58,7 @@ function jiwa(s: VillageState, g: GroupId): number {
 function mulai(s: VillageState, jenis: JenisUnjuk, kelompok: GroupId, tuntutan: string, catat: Catat) {
   const massa = Math.max(15, Math.round(jiwa(s, kelompok) * (0.05 + nextRandom(s) * 0.08)));
   s.unjuk = { id: `u${s.nomorUrut++}`, jenis, kelompok, tuntutan, massa, intensitas: 20, mulaiHari: s.hari, penanganan: null };
+  beritaDesa(s, jenis === 'demo' ? `Warga ${s.namaDesa} Berdemo di Kantor Desa` : jenis === 'blokade' ? `Warga Blokade Jalan Desa ${s.namaDesa}` : `Mogok Kerja di ${s.namaDesa}`, `Tuntutan: ${tuntutan}.`);
   const lokasi = jenis === 'demo' ? 'di depan kantor desa' : jenis === 'blokade' ? 'di jalan utama desa' : jenis === 'mogok_buruh' ? 'di lokasi proyek' : 'di kantor desa';
   catat('buruk', `${NAMA_JENIS[jenis]}: sekitar ${massa} ${jenis === 'mogok_perangkat' ? 'perangkat dan staf' : namaKelompok(kelompok).toLowerCase()} berkumpul ${lokasi}. Tuntutan: ${tuntutan}.`);
 }

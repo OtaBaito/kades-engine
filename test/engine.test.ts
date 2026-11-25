@@ -226,3 +226,48 @@ test('relasi: BPD yang muak memakzulkan kades kalau bupati tidak melindungi', ()
   t = advance(t, 3).state;
   assert.equal(t.status, 'menjabat');
 });
+
+test('usaha: PT melamar, disetujui, dibangun, lalu menyerap tenaga kerja dan bayar retribusi', () => {
+  let s = baru('pt');
+  s.level = 5;
+  let tw = null;
+  for (let i = 0; i < 120 && !tw; i++) {
+    s = advance(s, 1).state;
+    tw = s.usaha?.tawaran ?? null;
+  }
+  assert.ok(tw, 'ada PT yang melamar');
+  s.kas = 1_000_000_000;
+  s.relasi!.perdes = [];
+  s = applyAction(s, { type: 'usaha', id: tw.id, aksi: 'setujui' }).state;
+  const u = s.usaha!.daftar.find((x) => x.id === tw.id)!;
+  assert.equal(u.status, 'dibangun');
+  s = advance(s, u.selesaiHari - s.hari + 1).state;
+  assert.equal(s.usaha!.daftar.find((x) => x.id === tw.id)!.status, 'beroperasi');
+  const v = buildView(s);
+  assert.ok(v.usaha.lapanganKerja > 0);
+  assert.ok(v.berita.daftar.some((b) => b.judul.includes('Beroperasi')));
+});
+
+test('usaha: mitra bersih menolak uang pelicin dan melaporkannya', () => {
+  const s = baru('bersih');
+  s.usaha = { daftar: [], tawaran: { id: 'dahono', hari: 0, batasHari: 20 }, tawaranBerikut: 999, jeda: {} };
+  const curiga = s.politik.kecurigaan;
+  const r = applyAction(s, { type: 'usaha', id: 'dahono', aksi: 'pelicin' }).state;
+  assert.equal(r.usaha!.tawaran, null);
+  assert.equal(r.usaha!.daftar.length, 0);
+  assert.ok(r.politik.kecurigaan > curiga);
+});
+
+test('berita & pidato: presiden berpidato, efeknya berlaku, dan kades bisa menanggapi', () => {
+  let s = baru('pidato');
+  for (let i = 0; i < 200 && !s.nasional?.pidato; i++) s = advance(s, 1).state;
+  assert.ok(s.nasional?.pidato, 'pidato muncul');
+  assert.ok(s.nasional!.berita.length > 0, 'ada berita');
+  const v = buildView(s);
+  assert.ok(v.berita.pidato?.kutipan.length);
+  s = applyAction(s, { type: 'tanggapi_pidato', tanggapan: 'kritik' }).state;
+  assert.equal(s.nasional!.pidato!.tanggapan, 'kritik');
+  assert.throws(() => applyAction(s, { type: 'tanggapi_pidato', tanggapan: 'dukung' }), GameError);
+  s = applyAction(s, { type: 'baca_berita' }).state;
+  assert.equal(buildView(s).berita.belumDibaca, 0);
+});

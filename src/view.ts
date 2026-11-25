@@ -36,6 +36,8 @@ import {
   statusDesa,
 } from './engine.ts';
 import { NAMA_PEMILIHAN, viewRelasi } from './relasi.ts';
+import { viewUsaha } from './usaha.ts';
+import { viewBerita } from './berita.ts';
 import type { Effect, GroupId, IndexId, VillageState } from './types.ts';
 
 const NAMA_KELOMPOK = Object.fromEntries(GROUPS.map((g) => [g.id, g.nama])) as Record<GroupId, string>;
@@ -229,6 +231,8 @@ export function buildView(state: VillageState) {
     pajak: viewPajak(state),
     unjuk: viewUnjuk(state),
     relasi: viewRelasi(state),
+    usaha: viewUsaha(state),
+    berita: viewBerita(state),
     programWajib: {
       belum: PROJECTS.filter((p) => p.wajib && !isBuilt(state, p.id)).map((p) => ({ id: p.id, nama: p.nama, dikerjakan: isRunning(state, p.id) })),
       tertahan: state.danaTertahan ?? 0,
@@ -525,6 +529,8 @@ function tujuanBerikut(state: VillageState): { teks: string; progres: number; ta
   const batas = batasSilpa(state);
   const rl = state.relasi;
   if (rl?.mosi) return { teks: `BPD menggulirkan mosi pemakzulan: ${Math.max(0, rl.mosi.batasHari - state.hari)} hari lagi`, progres: 0.05, tab: 'politik' };
+  const tw = state.usaha?.tawaran;
+  if (tw) return { teks: `Ada perusahaan minta izin masuk desa (${Math.max(0, tw.batasHari - state.hari)} hari lagi)`, progres: 0.5, tab: 'bangun' };
   if (rl?.pemilihan && !rl.pemilihan.dukung) {
     return { teks: `${NAMA_PEMILIHAN[rl.pemilihan.jenis]}: tentukan sikapmu`, progres: 1 - Math.max(0, rl.pemilihan.hasilHari - state.hari) / 30, tab: 'politik' };
   }

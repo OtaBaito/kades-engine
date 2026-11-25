@@ -12,6 +12,8 @@
 import { arus } from './arus.ts';
 import { GameError } from './errors.ts';
 import { nextRandom } from './rng.ts';
+import { bonusPerdes } from './usaha.ts';
+import { beritaDesa } from './berita.ts';
 import type { GroupId, IndexId, VillageState } from './types.ts';
 
 const JT = 1_000_000;
@@ -529,7 +531,7 @@ export function aturBpd(s: VillageState, aksi: AksiBpd): string {
 
 export function peluangPerdes(s: VillageState): number {
   const r = stateRelasi(s);
-  return Math.max(0.1, Math.min(0.95, 0.2 + (r.bpd / 100) * 0.9));
+  return Math.max(0.1, Math.min(0.95, 0.2 + (r.bpd / 100) * 0.9 + bonusPerdes(s)));
 }
 
 export function aturPerdes(s: VillageState, id: string, aksi: 'usul' | 'cabut'): string {
@@ -757,6 +759,13 @@ function selesaiPemilihan(s: VillageState, r: StateRelasi, catat: Catat) {
     catat('buruk', `${judul}: ${lanjut}. Jagoan desa kalah, dan pemenangnya ingat siapa yang dulu berseberangan.${akibat.length ? ` (${akibat.join(', ')})` : ''}`);
   }
   r.tokoh[id] = { nama: pemenang.nama, kubu: pemenang.kubu, relasi: relasiBaru, sejakHari: s.hari };
+  beritaDesa(
+    s,
+    p.jenis === 'kapolsek' || p.jenis === 'danramil' ? `${pemenang.nama} Resmi Jadi ${TOKOH[id].jabatan} Baru` : `${pemenang.nama} Menangi ${judul}`,
+    p.jenis === 'kapolsek' || p.jenis === 'danramil' ? `Serah terima jabatan digelar di kecamatan. ${lama} pindah tugas.` : `${pemenang.nama} (${pemenang.kubu}) unggul dalam hitung cepat. Para kepala desa mulai merapat.`,
+    p.jenis === 'presiden' ? 'nasional' : 'daerah',
+    p.jenis === 'presiden' ? 'Kabar Nusantara' : 'Warta Kabupaten',
+  );
   // bupati baru merotasi camat
   if (id === 'bupati' && pemenang.nama !== lama) {
     r.tokoh.camat = { nama: pilihAcak(s, NAMA.camat.filter((n) => n !== r.tokoh.camat.nama)), kubu: 'ditunjuk bupati', relasi: clamp(30 + relasiBaru * 0.5), sejakHari: s.hari };
@@ -900,6 +909,7 @@ export function bulananRelasi(s: VillageState, catat: Catat): void {
     const goyah = s.popularitas < 35 || s.politik.kecurigaan >= 55 || s.integritas < 30;
     if (r.bpd < 30 && goyah && nextRandom(s) < 0.35 + (wakilMembelot(r) ? 0.2 : 0)) {
       r.mosi = { mulaiHari: s.hari, batasHari: s.hari + 20, respon: [], dilindungi: false };
+      beritaDesa(s, `BPD ${s.namaDesa} Gulirkan Hak Angket terhadap Kades`, 'Sejumlah anggota BPD menilai kades gagal menjalankan amanah. Pemungutan suara dijadwalkan pekan depan.');
       catat('buruk', `BPD menggulirkan hak angket dan mengancam mengusulkan pemberhentian kades. Pemungutan suara 20 hari lagi.${wakilMembelot(r) ? ` Wakil kades ${r.wakil!.nama} disebut-sebut ikut mendorong.` : ''}`);
     }
   }

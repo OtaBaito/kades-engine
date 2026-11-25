@@ -343,6 +343,10 @@ export interface VillageState {
   unjukTerakhir?: number;
   /** Relasi dengan aparat dan atasan, BPD, perdes, pemilu atasan, wakil kades (relasi.ts). */
   relasi?: import('./relasi.ts').StateRelasi;
+  /** Kawasan usaha: PT yang melamar dan beroperasi (usaha.ts). */
+  usaha?: import('./usaha.ts').StateUsaha;
+  /** Berita dan pidato presiden (berita.ts). */
+  nasional?: import('./berita.ts').StateNasional;
   dekorasi: string[];
   /** Level tiap unit BUMDes (0 = belum dibangun). */
   bumdes: Record<string, number>;
@@ -419,6 +423,9 @@ export type Action =
   | { type: 'perdes'; id: string; aksi: 'usul' | 'cabut'; alasan?: string }
   | { type: 'mosi'; cara: 'lobi' | 'dialog' | 'perlindungan'; alasan?: string }
   | { type: 'wakil'; aksi: 'pilih' | 'rangkul' | 'berhentikan' | 'cari'; id?: string; alasan?: string }
+  | { type: 'usaha'; id: string; aksi: 'setujui' | 'csr' | 'pelicin' | 'tolak' | 'tutup'; alasan?: string }
+  | { type: 'tanggapi_pidato'; tanggapan: 'dukung' | 'diam' | 'kritik'; alasan?: string }
+  | { type: 'baca_berita' }
   | { type: 'pajak'; aksi: 'setor' | 'otomatis_nyala' | 'otomatis_mati' | 'pbb_normal' | 'pbb_gencar' | 'pbb_ringan'; alasan?: string }
   | { type: 'investasi'; jenis: 'cadangan' | 'modal_bumdes' | 'kripto'; arah: 'simpan' | 'tarik'; jumlah: number; alasan?: string }
   | { type: 'pilih_penerus'; id: string; alasan?: string }

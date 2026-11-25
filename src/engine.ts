@@ -14,6 +14,8 @@ import { angkatKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
 import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
 import { harianUnjuk, tanganiUnjuk } from './unjuk.ts';
+import { bacaBerita, harianBerita, potongEfisiensi, tanggapiPidato } from './berita.ts';
+import { aturUsaha, bulananUsaha, harianUsaha } from './usaha.ts';
 import { aturBpd, aturPerdes, aturRelasi, aturWakil, bulananRelasi, dukungCalon, faktorTermin, harianRelasi, perdesAktif, responMosi } from './relasi.ts';
 import { efekRekananProyek, kontrakRekanan, maksProyek } from './rekanan.ts';
 import { berhentikanStaf, cariKandidat, efekKeStaf, isiTokohStaf, pegawaiKeluar, segarkanKandidat, upgradeKantor } from './kepegawaian.ts';
@@ -262,6 +264,12 @@ function startOfMonth(state: VillageState, events: LogEntry[]): void {
     }
   }
   // relasi dengan bupati menentukan termin (sampai ±10%)
+  // efisiensi anggaran dari pidato presiden: potong 10% sekali
+  const fEfisiensi = potongEfisiensi(state);
+  if (fEfisiensi < 1) {
+    jumlah = Math.round(jumlah * fEfisiensi);
+    log(state, events, 'politik', 'Efisiensi anggaran pusat: termin dana desa kali ini dipotong 10%.');
+  }
   const fTermin = faktorTermin(state);
   if (Math.abs(fTermin - 1) >= 0.03) {
     jumlah = Math.round(jumlah * fTermin);
@@ -326,6 +334,9 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
   // relasi atasan & aparat, pemilu atasan, mosi pemakzulan
   harianRelasi(state, (j, t) => log(state, events, j, t));
   if (state.status !== 'menjabat') return;
+  // berita, pidato presiden, dan kawasan usaha
+  harianBerita(state, (j, t) => log(state, events, j, t));
+  harianUsaha(state, (j, t) => log(state, events, j, t));
   harianMega(state, (j, t) => {
     log(state, events, j, t);
     if (j === 'baik' && t.includes('DIRESMIKAN')) tambahXp(state, FITUR.xp.proyekSelesai * 4, (jj, tt) => log(state, events, jj, tt));
@@ -469,7 +480,10 @@ function closeMonth(state: VillageState, events: LogEntry[]): void {
   bulananPenduduk(state, (j, t) => log(state, events, j, t));
   // gaji kades, kecurigaan, dan audit inspektorat (politik.ts)
   bulananPolitik(state, (j, t) => log(state, events, j, t));
-  if (state.status === 'menjabat') bulananRelasi(state, (j, t) => log(state, events, j, t));
+  if (state.status === 'menjabat') {
+    bulananRelasi(state, (j, t) => log(state, events, j, t));
+    bulananUsaha(state, (j, t) => log(state, events, j, t));
+  }
   bulananInvestasi(state, (j, t) => log(state, events, j, t));
   if (state.status !== 'menjabat') return;
 
@@ -669,6 +683,12 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     // perdes keterbukaan anggaran: permainan anggaran lebih cepat tercium
     if (perdesAktif(state, 'transparansi')) state.politik.kecurigaan = Math.min(100, state.politik.kecurigaan + 5);
     return politik(teks, 'buruk');
+  }
+  if (action.type === 'usaha') return politik(aturUsaha(state, action.id, action.aksi), 'politik');
+  if (action.type === 'tanggapi_pidato') return politik(tanggapiPidato(state, action.tanggapan), 'politik');
+  if (action.type === 'baca_berita') {
+    bacaBerita(state);
+    return { state, events };
   }
   if (action.type === 'relasi') return politik(aturRelasi(state, action.aksi, action.tokoh), 'politik');
   if (action.type === 'dukung_calon') return politik(dukungCalon(state, action.calonId, action.cara), 'politik');

@@ -2,6 +2,7 @@
 // kampanye melawan calon NPC, lobi mengubah aturan masa jabatan, dan rapor "Warisan".
 // Semua nama orang, lembaga, dan aturan di sini fiktif.
 import { faktorAudit } from './relasi.ts';
+import { faktorAuditNasional } from './berita.ts';
 import { JABATAN_DESA, angkatKeluarga, honorKeluarga } from './jabatan.ts';
 import { GROUPS } from './content/groups.ts';
 import { GameError } from './errors.ts';
@@ -271,7 +272,7 @@ export function bulananPolitik(s: VillageState, catat: Catat): void {
 
   // audit inspektorat
   if (!p.kasus) {
-    const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s);
+    const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s) * faktorAuditNasional(s);
     if (nextRandom(s) < peluang) {
       const nilai = Math.round(p.totalKorupsi * 0.6 + 10 * JT);
       p.kasus = { mulai: s.hari, batas: s.hari + POLITIK.batasHariAudit, nilai };

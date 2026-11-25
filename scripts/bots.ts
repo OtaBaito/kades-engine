@@ -74,6 +74,16 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
     if (bot === 'acak' && rand() < 0.05) coba({ type: 'perdes', id: ['retribusi_pasar', 'jam_malam', 'musdes_rutin', 'larangan_tambang'][Math.floor(rand() * 4)], aksi: 'usul' });
     if (rl.wakil && rl.wakil.loyalitas < 35 && bot !== 'acak') coba({ type: 'wakil', aksi: 'rangkul' });
   }
+  // kawasan usaha: jujur minta CSR (kecuali tambang), serakah minta pelicin, acak sembarang
+  const tw = s.usaha?.tawaran;
+  if (tw) {
+    const aksi = bot === 'jujur' ? (tw.id === 'tambang' ? 'tolak' : 'csr') : bot === 'serakah' ? (tw.id === 'dahono' || tw.id === 'sabako' ? 'setujui' : 'pelicin') : (['setujui', 'csr', 'pelicin', 'tolak'] as const)[Math.floor(rand() * 4)];
+    coba({ type: 'usaha', id: tw.id, aksi });
+    if (s.usaha?.tawaran) coba({ type: 'usaha', id: tw.id, aksi: 'tolak' });
+  }
+  if (s.nasional?.pidato && !s.nasional.pidato.tanggapan) {
+    coba({ type: 'tanggapi_pidato', tanggapan: bot === 'acak' ? (['dukung', 'diam', 'kritik'] as const)[Math.floor(rand() * 3)] : bot === 'jujur' ? 'diam' : 'dukung' });
+  }
   // rutinitas kecil: tagih, tanggapi aspirasi, klaim misi
   coba({ type: 'tagih' });
   for (const a of buildView(s).aspirasi) if (bot !== 'acak' || rand() < 0.5) coba({ type: 'tanggapi_aspirasi', id: a.id });
