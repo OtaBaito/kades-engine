@@ -327,7 +327,9 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
   for (let i = 0; i < 2; i++) {
     const idx = Math.floor(nextRandom(s) * tersedia.length);
     const c = tersedia.splice(idx, 1)[0];
-    lawan.push({ id: `lawan${i + 1}`, nama: c.nama, kubu: c.kubu, kekuatan: Math.round(38 + nextRandom(s) * 20 + 4 * (s.periode - 1)) });
+    // desa yang makin maju menarik penantang yang makin kuat (modal, jaringan partai, dukungan juragan)
+    const tarikan = 2 * Math.max(0, (s.level ?? 1) - 1) + 4 * (s.periode - 1);
+    lawan.push({ id: `lawan${i + 1}`, nama: c.nama, kubu: c.kubu, kekuatan: Math.min(92, Math.round(40 + nextRandom(s) * 20 + tarikan)) });
   }
   // batas periode berlaku untuk masa jabatan berturut-turut: kades yang satu periode tidak menjabat
   // (penerus atau jagoannya yang memimpin) boleh mencalonkan diri lagi
@@ -349,7 +351,8 @@ function porsiSuara(s: VillageState, g: GroupId, m: AnggotaKeluarga | undefined,
   const dasar = m
     ? 0.3 + (s.kepuasan[g] - 50) / 150 + (s.popularitas - 50) / 350 + (m.elektabilitas - 40) / 110 + (m.kompetensi - 50) / 400 + integritas
     : 0.36 + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
-  return dasar + bonus / 100 - (lawanTerkuat - 50) / 250;
+  // penantang kuat benar-benar menggerus suara: kades populer pun harus tetap merawat warga di tahun pilkades
+  return dasar + bonus / 100 - (lawanTerkuat - 50) / 110;
 }
 
 /**

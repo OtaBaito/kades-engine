@@ -347,7 +347,7 @@ export function aturUsaha(s: VillageState, id: string, aksi: AksiUsaha): string 
 
   if (aksi === 'tolak') {
     us.tawaran = null;
-    us.jeda[id] = s.hari + 240;
+    us.jeda[id] = s.hari + 720;
     const swasembada = d.lahanSawah && efekAktif(s, 'swasembada');
     const turun = swasembada ? 0 : d.saatSetuju?.relasiBupati ? 6 : 2;
     rel.tokoh.bupati.relasi = clamp(rel.tokoh.bupati.relasi - turun);
@@ -377,7 +377,7 @@ export function aturUsaha(s: VillageState, id: string, aksi: AksiUsaha): string 
     const awasi = efekAktif(s, 'awasi_pungli');
     if (nextRandom(s) < (awasi ? 0.35 : 0.1)) {
       us.tawaran = null;
-      us.jeda[id] = s.hari + 240;
+      us.jeda[id] = s.hari + 720;
       s.politik.kecurigaan = clamp(s.politik.kecurigaan + 15);
       s.integritas = clamp(s.integritas - 4);
       return `Perwakilan ${d.nama} merekam permintaan uang pelicin dan rekamannya beredar.${awasi ? ' Di tengah perintah presiden memberantas pungli, kasusnya cepat naik.' : ''} Investasi batal. (gosip +15)`;
@@ -393,7 +393,7 @@ export function aturUsaha(s: VillageState, id: string, aksi: AksiUsaha): string 
     const mau = d.bersih ? 0.95 : 0.7;
     if (nextRandom(s) >= mau) {
       us.tawaran = null;
-      us.jeda[id] = s.hari + 240;
+      us.jeda[id] = s.hari + 720;
       rel.tokoh.bupati.relasi = clamp(rel.tokoh.bupati.relasi - 4);
       return `${d.nama} keberatan dengan permintaan CSR dan memilih pindah ke desa tetangga. (relasi bupati -4)`;
     }

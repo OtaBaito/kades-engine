@@ -458,6 +458,10 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
     state.antreanKartu = (state.antreanKartu ?? []).filter((x) => x !== a);
     const kartu = CARD_BY_ID.get(a.cardId);
     if (!kartu) continue;
+    if (kartu.syarat?.tanpaPerdes && (state.relasi?.perdes ?? []).includes(kartu.syarat.tanpaPerdes)) {
+      log(state, events, 'info', `${kartu.judul}: rencana ini batal karena bertentangan dengan perdes yang berlaku.`);
+      continue;
+    }
     state.kotakMasuk.push({ instanceId: `k${state.nomorUrut++}`, cardId: kartu.id, hariMasuk: state.hari });
     state.riwayatKartu[kartu.id] = state.hari;
     log(state, events, 'politik', `Bersambung: ${kartu.judul}.`);
@@ -569,6 +573,11 @@ export function opsiTersedia(state: VillageState, card: CardDef): CardDef['opsi'
   });
 }
 
+/** Judul kartu, ikut berubah kalau cerita lanjutan punya judul sendiri. */
+export function judulKartu(state: VillageState, card: CardDef): string {
+  return lanjutanKartu(state, card)?.judul ?? card.judul;
+}
+
 export function teksKartu(state: VillageState, card: CardDef): string {
   const l = lanjutanKartu(state, card);
   if (l) return l.teks;
@@ -587,6 +596,9 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   } else if (card.jedaHari !== undefined && terakhir !== undefined && state.hari - terakhir < card.jedaHari) return false;
   if (state.kotakMasuk.some((k) => k.cardId === card.id)) return false;
   if (card.grup) {
+    // kartu acak dengan judul sama (variasi lokasi) tidak muncul lagi dalam setahun
+    const j = state.riwayatKartu[`judul:${card.judul}`];
+    if (j !== undefined && state.hari - j < 360) return false;
     const g = state.riwayatKartu[`grup:${card.grup}`];
     if (g !== undefined && state.hari - g < JEDA_GRUP) return false;
     if (state.kotakMasuk.some((k) => k.cardId.startsWith(`acak_${card.grup}_`))) return false;
@@ -620,8 +632,9 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
  * Kartu yang menyebut angka rupiah di teks atau labelnya tidak diskalakan supaya angkanya tetap cocok.
  */
 export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label: string }): number {
-  const sebutAngka = /\d\s*jt|Rp\s*\d/;
-  if (sebutAngka.test(card.teks) || sebutAngka.test(opsi.label)) return 1;
+  const sebutAngka = /\d\s*(jt|juta)|Rp\s*\d/;
+  // satu label menyebut angka (mis. "Rp20 juta penuh"): seluruh kartu tidak diskalakan, supaya "separuh" tetap separuh
+  if (sebutAngka.test(card.teks) || sebutAngka.test(opsi.label) || card.opsi.some((o) => sebutAngka.test(o.label))) return 1;
   // desa besar dengan kas tipis (mis. baru diteruskan kades baru) tidak langsung dibebani biaya besar
   const menurutLevel = 1 + 0.15 * Math.max(0, (state.level ?? 1) - 1);
   const menurutKas = Math.max(1, state.kas / (150 * 1_000_000));
@@ -654,7 +667,10 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   const stafId = calon.length ? calon[Math.floor(nextRandom(state) * calon.length)].id : undefined;
   state.kotakMasuk.push({ instanceId: `k${state.nomorUrut++}`, cardId: card.id, hariMasuk: state.hari, ...(stafId ? { stafId } : {}) });
   state.riwayatKartu[card.id] = state.hari;
-  if (card.grup) state.riwayatKartu[`grup:${card.grup}`] = state.hari;
+  if (card.grup) {
+    state.riwayatKartu[`grup:${card.grup}`] = state.hari;
+    state.riwayatKartu[`judul:${card.judul}`] = state.hari;
+  }
   log(state, events, card.kategori === 'politik' || card.kategori === 'kampanye' ? 'politik' : 'info', `Masuk: ${isiTokohStaf(state, stafId, card.judul)}.`);
 }
 

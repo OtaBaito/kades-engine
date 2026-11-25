@@ -252,7 +252,10 @@ export const CARDS: CardDef[] = [
     ],
     "kategori": "usulan",
     "bobot": 2,
-    "jedaHari": 80,
+    "jedaHari": 120,
+    "syarat": {
+      "tanpaFlag": "beasiswa_kuota"
+    },
     "opsi": [
       {
         "id": "setuju",
@@ -288,7 +291,10 @@ export const CARDS: CardDef[] = [
           },
           "indeks": {
             "sosial": 3
-          }
+          },
+          "setFlag": [
+            "beasiswa_kuota"
+          ]
         }
       },
       {
@@ -2099,8 +2105,8 @@ export const CARDS: CardDef[] = [
     "judul": "Kontrakan Liar Tanpa Lapor RT",
     "teks": "Puluhan buruh pabrik tinggal di kontrakan baru tanpa lapor. Warga lama resah soal keamanan dan sampah.",
     "kategori": "aduan",
-    "bobot": 4,
-    "jedaHari": 90,
+    "bobot": 3.5,
+    "jedaHari": 240,
     "syarat": {
       "butuhCorak": [
         "pinggiran"

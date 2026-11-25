@@ -32,6 +32,7 @@ import {
   isBuilt,
   isRunning,
   opsiTersedia,
+  judulKartu,
   efekKartuBerskala,
   skalaUangKartu,
   skorDesa,
@@ -70,6 +71,7 @@ export function describeEffect(e: Effect): string[] {
   if (e.setFlag?.includes('restu_bupati')) out.push('Relasi bupati +10');
   if (e.setFlag?.includes('dimusuhi_bupati')) out.push('Relasi bupati -10');
   if (e.setFlag?.includes('restu_camat')) out.push('Relasi camat +10');
+  if (e.setFlag?.includes('dimusuhi_camat')) out.push('Relasi camat -10');
   if (e.stafKeluar) out.push('Pegawai ini keluar dari kantor desa');
   if (e.pecatPeran) out.push('Pegawai yang bersangkutan diberhentikan');
   if (e.stafKinerja) out.push(`Kinerja pegawai ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`);
@@ -103,6 +105,7 @@ export function effectDetails(e: Effect): EfekRinci[] {
   if (e.setFlag?.includes('restu_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati +10', nilai: 1 });
   if (e.setFlag?.includes('dimusuhi_bupati')) out.push({ jenis: 'staf', teks: 'Relasi bupati -10', nilai: -1 });
   if (e.setFlag?.includes('restu_camat')) out.push({ jenis: 'staf', teks: 'Relasi camat +10', nilai: 1 });
+  if (e.setFlag?.includes('dimusuhi_camat')) out.push({ jenis: 'staf', teks: 'Relasi camat -10', nilai: -1 });
   if (e.stafKeluar) out.push({ jenis: 'staf', teks: 'Keluar', nilai: -1 });
   if (e.stafKinerja) out.push({ jenis: 'staf', teks: `Kinerja ${e.stafKinerja > 0 ? '+' : ''}${Math.round(e.stafKinerja * 100)}%`, nilai: e.stafKinerja });
   if (e.stafGajiX) out.push({ jenis: 'staf', teks: `Gaji ${e.stafGajiX > 1 ? '+' : '-'}${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`, nilai: 1 - e.stafGajiX });
@@ -169,7 +172,7 @@ export function buildView(state: VillageState) {
       const staf = k.stafId ? (state.staf ?? []).find((x) => x.id === k.stafId) : undefined;
       return {
         instanceId: k.instanceId,
-        judul: isi(card.judul),
+        judul: isi(judulKartu(state, card)),
         teks: isi(teksKartu(state, card)),
         kategori: card.kategori,
         hariMasuk: k.hariMasuk,
@@ -179,7 +182,8 @@ export function buildView(state: VillageState) {
         tokohStaf: staf ? { nama: staf.nama, peran: PEGAWAI.find((p) => p.id === staf.peran)?.peran ?? staf.peran, sifat: staf.sifat.map((x) => SIFAT[x]?.nama ?? x) } : null,
         opsi: opsiTersedia(state, card).map((o) => {
           const e = efekKartuBerskala(o.effect, skalaUangKartu(state, card, o));
-          return { id: o.id, label: isi(o.label), efek: describeEffect(e), rinci: effectDetails(e) };
+          const efek = describeEffect(e);
+          return { id: o.id, label: isi(o.label), efek: efek.length ? efek : ['Tidak ada efek langsung'], rinci: effectDetails(e) };
         }),
       };
     }),

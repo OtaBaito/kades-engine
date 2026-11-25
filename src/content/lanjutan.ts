@@ -81,6 +81,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
   },
   "stunting": {
     "pmt": {
+      "judul": "Kabar Program Makanan Tambahan",
       "teks": "Program makanan tambahan berjalan. Bidan melapor berat badan balita mulai naik, tapi stok susu dan telur menipis.",
       "opsi": [
         {
@@ -123,6 +124,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
       ]
     },
     "pmt_lanjut": {
+      "judul": "Desa Jadi Contoh Penurunan Stunting",
       "teks": "Desa jadi contoh penurunan stunting di kecamatan. Dinas kesehatan menawarkan pendampingan, asal desa ikut membiayai.",
       "opsi": [
         {
@@ -157,6 +159,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
       ]
     },
     "kebun_gizi": {
+      "judul": "Kebun Gizi PKK Panen",
       "teks": "Kebun gizi PKK panen sayur dan lele. Ibu-ibu ingin hasilnya dijual, sebagian minta tetap dibagi gratis.",
       "opsi": [
         {
@@ -188,6 +191,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
       ]
     },
     "penyuluhan": {
+      "judul": "Angka Kurang Gizi Belum Turun",
       "teks": "Penyuluhan sudah jalan, tapi angka kurang gizi belum turun. Bidan bilang masalahnya bukan pengetahuan, tapi uang belanja.",
       "opsi": [
         {
@@ -227,6 +231,7 @@ export const LANJUTAN: Record<string, Record<string, Lanjutan>> = {
       ]
     },
     "laporan_bagus": {
+      "judul": "Tim Kabupaten Cek Angka Stunting",
       "teks": "Tim kabupaten datang mengecek angka stunting yang \"turun drastis\". Timbangan di posyandu bercerita lain.",
       "opsi": [
         {

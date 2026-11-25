@@ -220,7 +220,8 @@ test('proyek besar: bayar bertahap, mangkrak kalau kas kurang, efek permanen saa
   assert.throws(() => applyAction(s, { type: 'mulai_megaproyek', id: 'pasar_modern' }), GameError);
   // kas dikuras: tahap kedua tidak terbayar, proyek mangkrak
   s.kas = 0;
-  s = advance(s, 25).state;
+  // jatuh tempo lewat, kontraktor memberi tenggang 7 hari, baru setelah itu proyek mangkrak
+  s = advance(s, 25 + 8).state;
   assert.equal(s.mega?.mangkrak, true);
   const selesaiMundur = s.mega!.selesaiHari;
   // kas diisi lagi: lanjut dan akhirnya diresmikan

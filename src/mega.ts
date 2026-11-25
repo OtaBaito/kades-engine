@@ -152,9 +152,21 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   const tk = m.tahapKe ?? 0;
   const nama = NAMA_TAHAP(def, tk);
   const f = skala(tk);
+  // pengingat 5 hari sebelum jatuh tempo kalau kas belum cukup (tutup buku bulanan bisa ikut memotong kas)
+  if (m.dibayar < total && !m.mangkrak && m.jatuhTempo - s.hari === 5 && m.diingatkan !== m.jatuhTempo) {
+    const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
+    m.diingatkan = m.jatuhTempo;
+    if (s.kas < bayar * 1.15) catat('buruk', `Tagihan tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt) jatuh tempo 5 hari lagi. Kas sekarang ${Math.round(s.kas / JT)} jt: siapkan cadangan untuk gaji dan perawatan juga.`);
+  }
   if (m.dibayar < total && s.hari >= m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
+    // kas kurang di hari jatuh tempo: kontraktor memberi tenggang 7 hari sebelum proyek berhenti
+    if (s.kas < bayar && !m.mangkrak && m.tenggang === undefined) {
+      m.tenggang = s.hari + 7;
+      catat('buruk', `Kas belum cukup membayar tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt). Kontraktor memberi tenggang 7 hari sebelum pekerjaan berhenti.`);
+    }
     if (s.kas >= bayar) {
+      m.tenggang = undefined;
       arus(s, 'Pembangunan', -bayar);
       m.dibayar += bayar;
       m.tahap += 1;
@@ -162,8 +174,9 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
       m.mangkrak = false;
       m.jatuhTempo = m.dibayar >= total ? Number.MAX_SAFE_INTEGER : s.hari + Math.round(def.durasi / 3);
       catat('info', `Tahap ${m.tahap} ${nama} dibayar ${Math.round(bayar / JT)} jt.`);
-    } else if (!m.mangkrak) {
+    } else if (!m.mangkrak && s.hari >= (m.tenggang ?? s.hari)) {
       m.mangkrak = true;
+      m.tenggang = undefined;
       s.popularitas = Math.max(0, s.popularitas - 4);
       s.politik.kecurigaan = Math.min(100, s.politik.kecurigaan + 4);
       catat('buruk', `${nama} MANGKRAK: kas tidak cukup membayar tahap berikutnya (${Math.round(bayar / JT)} jt). Pekerja pulang, warga mulai bertanya ke mana uangnya.`);
@@ -227,6 +240,8 @@ export function viewMega(s: VillageState) {
             total,
             tagihanBerikut: m.dibayar < total ? Math.min(total - m.dibayar, Math.round(total * TAHAP)) : 0,
             jatuhTempoHari: m.dibayar < total ? Math.max(0, m.jatuhTempo - s.hari) : null,
+            /** Sisa hari tenggang kalau tagihan sudah lewat jatuh tempo tapi kas belum cukup. */
+            tenggangHari: m.tenggang !== undefined ? Math.max(0, m.tenggang - s.hari) : null,
             mangkrak: m.mangkrak,
           };
         })()
