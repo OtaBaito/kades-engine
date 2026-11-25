@@ -4,6 +4,7 @@
 // setiap hari selama berlangsung, dan makin panas kalau dibiarkan sampai akhirnya ricuh.
 // Kades bisa menemui massa, memenuhi tuntutan, atau membubarkan dengan polisi, tentara, atau ormas.
 // Semua acak memakai RNG ber-seed di state (deterministik).
+import { faktorPemicuPegawai, redamUnjuk } from './tugas.ts';
 import { beritaDesa } from './berita.ts';
 import { faktorPemicuUnjuk, namaTokoh, relasiAparat } from './relasi.ts';
 import { arus } from './arus.ts';
@@ -90,7 +91,7 @@ export function harianUnjuk(s: VillageState, catat: Catat): void {
     return;
   }
   // mogok buruh proyek: hanya saat ada pembangunan
-  if (s.proyekBerjalan.length > 0 && nextRandom(s) < (s.kas < 0 ? 0.03 : 0.006) * faktorPemicuUnjuk(s, 'mogok_buruh')) {
+  if (s.proyekBerjalan.length > 0 && nextRandom(s) < (s.kas < 0 ? 0.03 : 0.006) * faktorPemicuUnjuk(s, 'mogok_buruh') * faktorPemicuPegawai(s, 'pemuda')) {
     mulai(s, 'mogok_buruh', 'pemuda', 'Upah buruh proyek telat dan di bawah UMR, minta dinaikkan', catat);
     return;
   }
@@ -99,7 +100,7 @@ export function harianUnjuk(s: VillageState, catat: Catat): void {
   for (const g of Object.keys(s.kepuasan) as GroupId[]) if (s.kepuasan[g] < s.kepuasan[terburuk]) terburuk = g;
   const k = s.kepuasan[terburuk];
   const gosip = s.politik?.kecurigaan ?? 0;
-  const peluang = ((k < 35 ? ((35 - k) / 35) * 0.035 : 0) + (gosip > 60 ? (gosip - 60) / 1500 : 0)) * faktorPemicuUnjuk(s, 'demo');
+  const peluang = ((k < 35 ? ((35 - k) / 35) * 0.035 : 0) + (gosip > 60 ? (gosip - 60) / 1500 : 0)) * faktorPemicuUnjuk(s, 'demo') * faktorPemicuPegawai(s, terburuk);
   if (peluang > 0 && nextRandom(s) < peluang) {
     const transparansi = gosip > 60 && nextRandom(s) < 0.5;
     const kelompok: GroupId = transparansi ? 'tokoh' : terburuk;
@@ -130,7 +131,8 @@ function efekHarian(s: VillageState, u: StateUnjuk, catat: Catat) {
       return;
     }
   }
-  u.intensitas = Math.min(100, u.intensitas + (u.jenis === 'mogok_perangkat' ? 3 : 4));
+  // linmas yang berjaga membuat massa memanas lebih lambat
+  u.intensitas = Math.min(100, u.intensitas + Math.max(1, (u.jenis === 'mogok_perangkat' ? 3 : 4) - redamUnjuk(s)));
   if (u.intensitas >= 100) ricuh(s, u, catat);
 }
 

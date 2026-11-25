@@ -1,4 +1,5 @@
 // Mekanik "desa hidup": koin retribusi, aspirasi, XP & level, misi, pencapaian, pegawai, dekorasi, upgrade.
+import { potonganBumdes } from './tugas.ts';
 import { migrasiJabatan } from './jabatan.ts';
 import { faktorKoinUnjuk } from './unjuk.ts';
 import { MEGA, biayaMega, bonusMega } from './mega.ts';
@@ -377,7 +378,7 @@ export function cekPencapaian(s: VillageState, catat: Catat): void {
 // ---------------------------------------------------------------- BUMDes (pendapatan pasif)
 
 export function bonusBumdes(s: VillageState): number {
-  return PEGAWAI.filter((p) => s.pegawai.includes(p.id)).reduce((t, p) => t + (p.bonusBumdes ?? 0) * kekuatanPeran(s, p.id), 0);
+  return PEGAWAI.filter((p) => s.pegawai.includes(p.id)).reduce((t, p) => t + (p.bonusBumdes ?? 0) * kekuatanPeran(s, p.id), 0) + potonganBumdes(s);
 }
 
 export function pendapatanBumdes(def: (typeof BUMDES)[number], level: number): number {

@@ -84,6 +84,23 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
   if (s.nasional?.pidato && !s.nasional.pidato.tanggapan) {
     coba({ type: 'tanggapi_pidato', tanggapan: bot === 'acak' ? (['dukung', 'diam', 'kritik'] as const)[Math.floor(rand() * 3)] : bot === 'jujur' ? 'diam' : 'dukung' });
   }
+  // pegawai: isi jabatan penting dulu, perbesar kantor kalau kas longgar
+  if (bot !== 'acak' || rand() < 0.3) {
+    const URUT = ['bendahara', 'linmas', 'kader', 'humas', 'operator', 'penyuluh_tani', 'kebersihan', 'pelatih', 'guru_paud', 'penyuluh_agama', 'manajer_bumdes', 'pendamping_hukum'];
+    const v0 = buildView(s);
+    const peg = (v0 as unknown as { pegawai: { id: string; terbuka: boolean; aktif: boolean; kandidat: { id: string; biayaRekrut: number }[] }[] }).pegawai;
+    if (v0.kantor.terisi < v0.kantor.kapasitas) {
+      for (const id of URUT) {
+        const p = peg.find((x) => x.id === id);
+        if (!p || !p.terbuka || p.aktif || !p.kandidat.length) continue;
+        if (s.kas < p.kandidat[0].biayaRekrut + 40_000_000) break;
+        coba({ type: 'rekrut_pegawai', id: p.kandidat[0].id });
+        break;
+      }
+    } else if (v0.kantor.berikut && s.level >= v0.kantor.berikut.minLevelDesa && s.kas > v0.kantor.berikut.biaya + 150_000_000) {
+      coba({ type: 'upgrade_kantor' });
+    }
+  }
   // rutinitas kecil: tagih, tanggapi aspirasi, klaim misi
   coba({ type: 'tagih' });
   for (const a of buildView(s).aspirasi) if (bot !== 'acak' || rand() < 0.5) coba({ type: 'tanggapi_aspirasi', id: a.id });

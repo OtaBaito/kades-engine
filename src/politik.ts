@@ -1,6 +1,7 @@
 // Politik desa yang bebas: dompet pribadi & aksi gelap, kecurigaan & audit, keluarga & penerus,
 // kampanye melawan calon NPC, lobi mengubah aturan masa jabatan, dan rapor "Warisan".
 // Semua nama orang, lembaga, dan aturan di sini fiktif.
+import { faktorAuditPegawai, faktorTemuan } from './tugas.ts';
 import { faktorAudit } from './relasi.ts';
 import { faktorAuditNasional } from './berita.ts';
 import { JABATAN_DESA, angkatKeluarga, honorKeluarga } from './jabatan.ts';
@@ -272,9 +273,9 @@ export function bulananPolitik(s: VillageState, catat: Catat): void {
 
   // audit inspektorat
   if (!p.kasus) {
-    const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s) * faktorAuditNasional(s);
+    const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s) * faktorAuditNasional(s) * faktorAuditPegawai(s);
     if (nextRandom(s) < peluang) {
-      const nilai = Math.round(p.totalKorupsi * 0.6 + 10 * JT);
+      const nilai = Math.round((p.totalKorupsi * 0.6 + 10 * JT) * faktorTemuan(s));
       p.kasus = { mulai: s.hari, batas: s.hari + POLITIK.batasHariAudit, nilai };
       p.pernahKasus += 1;
       catat('buruk', `Inspektorat datang memeriksa keuangan desa. Ada temuan Rp ${jt(nilai)} jt yang harus dijelaskan dalam ${POLITIK.batasHariAudit} hari.`);

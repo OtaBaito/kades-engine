@@ -1,4 +1,5 @@
 // Tampilan state untuk UI dan MCP. Risiko tersembunyi tidak pernah ikut.
+import { TUGAS } from './tugas.ts';
 import { kasBersih, viewPajak } from './pajak.ts';
 import { viewUnjuk } from './unjuk.ts';
 import { maksProyek, viewRekanan } from './rekanan.ts';
@@ -290,6 +291,7 @@ export function buildView(state: VillageState) {
         nama: staf[0]?.nama ?? p.nama,
         peran: p.peran,
         efek: p.efek,
+        tugas: TUGAS[p.id] ?? { ada: [p.efek], kosong: [] },
         gajiBulanan: p.gajiBulanan,
         biayaRekrut: p.biayaRekrut,
         aktif: staf.length > 0,

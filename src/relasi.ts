@@ -9,6 +9,7 @@
 // - kapolsek, danramil: mau tidaknya aparat membantu saat ada aksi massa, dan cepat lambatnya laporan warga
 //   tentang kades diproses (peluang audit)
 // Semua nama orang dan partai fiktif.
+import { bantuMosi } from './tugas.ts';
 import { arus } from './arus.ts';
 import { GameError } from './errors.ts';
 import { nextRandom } from './rng.ts';
@@ -810,7 +811,7 @@ function putuskanMosi(s: VillageState, r: StateRelasi, catat: Catat) {
   r.mosi = null;
   const loyal = r.wakil && r.wakil.loyalitas >= 70 ? -0.1 : 0;
   const belot = wakilMembelot(r) ? 0.15 : 0;
-  const peluang = Math.max(0.05, Math.min(0.9, (50 - r.bpd) / 45 + belot + loyal));
+  const peluang = Math.max(0.05, Math.min(0.9, (50 - r.bpd) / 45 + belot + loyal - bantuMosi(s)));
   if (nextRandom(s) >= peluang) {
     r.bpd = clamp(r.bpd + 5);
     r.jeda.mosi = s.hari + 120;

@@ -271,3 +271,28 @@ test('berita & pidato: presiden berpidato, efeknya berlaku, dan kades bisa menan
   s = applyAction(s, { type: 'baca_berita' }).state;
   assert.equal(buildView(s).berita.belumDibaca, 0);
 });
+
+test('pegawai: kursi kosong berakibat, kursi terisi berpengaruh nyata', async () => {
+  const { bulananTugas, faktorAuditPegawai, faktorPemicuPegawai, redamUnjuk, TUGAS } = await import('../src/tugas.ts');
+  const { PEGAWAI } = await import('../src/content/fitur.ts');
+  for (const p of PEGAWAI) assert.ok(TUGAS[p.id]?.ada.length && TUGAS[p.id]?.kosong.length, `${p.id} punya tugas dan akibat kosong`);
+  // desa level tinggi tanpa pegawai: banyak kejadian buruk dalam setahun
+  let s = baru('kosong');
+  s.level = 6;
+  s.staf = [];
+  s.pegawai = [];
+  const curiga = s.politik.kecurigaan;
+  const log: string[] = [];
+  for (let i = 0; i < 12; i++) bulananTugas(s, (_j, t) => log.push(t));
+  assert.ok(log.length >= 2, `ada kejadian buruk: ${log.length}`);
+  assert.ok(s.politik.kecurigaan > curiga, 'tanpa bendahara gosip naik');
+  assert.equal(faktorAuditPegawai(s), 1);
+  // dengan linmas dan bendahara
+  s.staf = [
+    { id: 'x1', peran: 'linmas', nama: 'Pak A', sifat: [], kinerja: 1, gaji: 3e6, sejakHari: 0 },
+    { id: 'x2', peran: 'bendahara', nama: 'Bu B', sifat: [], kinerja: 1, gaji: 4e6, sejakHari: 0 },
+  ] as never;
+  assert.ok(faktorAuditPegawai(s) < 1);
+  assert.ok(faktorPemicuPegawai(s) < 1);
+  assert.ok(redamUnjuk(s) > 0);
+});

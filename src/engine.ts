@@ -1,3 +1,4 @@
+import { bulananTugas } from './tugas.ts';
 import { CARDS, CARD_BY_ID } from './content/cards.ts';
 import { LANJUTAN } from './content/lanjutan.ts';
 import { GROUPS, GROUP_IDS } from './content/groups.ts';
@@ -483,6 +484,7 @@ function closeMonth(state: VillageState, events: LogEntry[]): void {
   if (state.status === 'menjabat') {
     bulananRelasi(state, (j, t) => log(state, events, j, t));
     bulananUsaha(state, (j, t) => log(state, events, j, t));
+    bulananTugas(state, (j, t) => log(state, events, j, t));
   }
   bulananInvestasi(state, (j, t) => log(state, events, j, t));
   if (state.status !== 'menjabat') return;
