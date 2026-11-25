@@ -224,11 +224,23 @@ export function createVillage(params: { seed: string; namaDesa: string; namaKade
 
 // ---------------------------------------------------------------- waktu
 
-export function advance(input: VillageState, days: number): StepResult {
+/** Krisis yang menunggu keputusan pemain (audit, mosi pemakzulan). */
+export function krisisAktif(state: VillageState): string | null {
+  if (state.politik?.kasus) return 'audit inspektorat';
+  if (state.relasi?.mosi) return 'mosi pemakzulan BPD';
+  return null;
+}
+
+/**
+ * Majukan desa beberapa hari. Dengan tungguKrisis (dipakai saat pemain offline), waktu berhenti begitu ada
+ * krisis yang butuh keputusan, supaya pemain tidak ditangkap atau dimakzulkan saat tidak membuka game.
+ */
+export function advance(input: VillageState, days: number, opsi: { tungguKrisis?: boolean } = {}): StepResult {
   const state = structuredClone(input);
   normalisasi(state);
   const events: LogEntry[] = [];
   for (let i = 0; i < days && state.status === 'menjabat'; i++) {
+    if (opsi.tungguKrisis && krisisAktif(state)) break;
     dailyUpdate(state, events);
     state.hari += 1;
     if (state.hari % RULES.hariPerBulan === 0) {

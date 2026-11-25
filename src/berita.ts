@@ -28,7 +28,7 @@ export interface Berita {
   dampak?: string;
 }
 
-export type TemaPidato = 'efisiensi' | 'mbg_kopdes' | 'swasembada' | 'investasi' | 'antikorupsi' | 'digital';
+export type TemaPidato = 'efisiensi' | 'mbg_kopdes' | 'swasembada' | 'investasi' | 'antikorupsi' | 'digital' | 'kritik' | 'pajak';
 
 export interface Pidato {
   id: string;
@@ -37,6 +37,8 @@ export interface Pidato {
   judul: string;
   kutipan: string[];
   dampak: string[];
+  /** Reaksi publik (warganet, warga desa). */
+  polemik?: string;
   tanggapan: 'dukung' | 'diam' | 'kritik' | null;
 }
 
@@ -242,29 +244,37 @@ function sudahBangun(s: VillageState, id: string): boolean {
   return s.proyekSelesai.some((b) => b.proyekId === id);
 }
 
+function kepuasan(s: VillageState, d: Partial<Record<GroupId, number>>) {
+  for (const [g, v] of Object.entries(d)) s.kepuasan[g as GroupId] = clamp(s.kepuasan[g as GroupId] + (v ?? 0));
+}
+
 function buatPidato(s: VillageState, tema: TemaPidato, catat: Catat): Pidato {
   const n = stateNasional(s);
   const r = stateRelasi(s);
   const pres = r.tokoh.presiden;
   let judul = '';
   let kutipan: string[] = [];
+  let polemik = '';
   const dampak: string[] = [];
   if (tema === 'efisiensi') {
-    judul = 'Presiden: Semua Harus Efisien, Tidak Ada Lagi Anggaran Seremonial';
+    judul = 'Presiden: Honorer Dirumahkan Demi Efisiensi, Pesawat Kepresidenan Baru Tetap Jalan';
     kutipan = [
-      'Saudara-saudara, uang rakyat bukan untuk seminar di hotel dan studi banding ke luar kota.',
-      'Saya minta semua, dari kementerian sampai desa, potong belanja yang tidak perlu. Efisiensi! Efisiensi!',
-      'Yang tidak efisien, silakan minggir.',
+      'Rapat cukup pakai teh tawar. Snack itu pemborosan!',
+      'Tenaga honorer yang tidak produktif, silakan dirumahkan dulu. Negara sedang berhemat.',
+      'Pesawat kepresidenan baru itu bukan kemewahan, itu kebutuhan negara. Jangan dipelintir.',
     ];
+    polemik = 'Tagar #HematUntukSiapa trending seharian. Guru dan perangkat honorer di grup desa ramai mengeluh.';
     n.efek.efisiensi_termin = s.hari + 400;
-    dampak.push('Termin dana desa berikutnya dipotong 10%.');
+    kepuasan(s, { pemuda: -2, tokoh: -1 });
+    dampak.push('Termin dana desa berikutnya dipotong 10%.', 'Pemuda -2, tokoh -1 (honorer resah).');
   } else if (tema === 'mbg_kopdes') {
-    judul = 'Presiden Tagih Komitmen Daerah untuk MBG dan Koperasi Desa';
+    judul = 'Presiden Geser Anggaran Pendidikan ke Makan Bergizi Gratis';
     kutipan = [
-      'Anak-anak kita harus makan bergizi. Tidak boleh ada desa yang tertinggal!',
-      'Koperasi desa adalah soko guru ekonomi. Saya sudah perintahkan, setiap desa harus punya.',
-      'Kepala desa yang tidak mendukung program ini, saya catat.',
+      'Anak lapar tidak bisa belajar. Jadi anggaran pendidikan kita geser sedikit ke MBG. Guru harus ikhlas!',
+      'Setiap desa wajib punya koperasi merah putih. Yang belum, akan saya ingat namanya.',
+      'Kalau ada yang keracunan menu MBG, itu oknum. Programnya tidak salah.',
     ];
+    polemik = 'Netizen ramai membagikan foto menu MBG yang cuma nasi dan tahu. Sebagian ibu-ibu membela, guru-guru geram.';
     const lengkap = sudahBangun(s, 'dapur_mbg') && sudahBangun(s, 'kopdes');
     if (lengkap) {
       pres.relasi = clamp(pres.relasi + 8);
@@ -275,51 +285,82 @@ function buatPidato(s: VillageState, tema: TemaPidato, catat: Catat): Pidato {
       s.popularitas = clamp(s.popularitas - 1);
       dampak.push('Desamu belum lengkap Dapur MBG dan Kopdes: relasi presiden -8, popularitas -1.');
     }
+    kepuasan(s, { pkk: 1, pemuda: -1 });
+    dampak.push('Ibu-ibu +1, pemuda -1.');
   } else if (tema === 'swasembada') {
-    judul = 'Presiden Canangkan Swasembada Pangan Tiga Tahun';
+    judul = 'Presiden Buka Sejuta Hektare Hutan untuk Sawah: "Yang Protes Itu Antek Asing"';
     kutipan = [
-      'Bangsa besar tidak boleh bergantung pada beras impor.',
-      'Petani adalah pahlawan. Saya minta semua kepala daerah dan kepala desa turun ke sawah.',
-      'Lahan sawah jangan dialihfungsikan sembarangan!',
+      'Kita buka hutan jadi lumbung pangan. Bangsa besar tidak boleh impor beras!',
+      'Pegiat lingkungan yang protes itu dibiayai asing. Saya tahu siapa mereka.',
+      'Lahan sawah desa jangan diganggu. Pabrik silakan cari tempat lain.',
     ];
-    s.kepuasan.petani = clamp(s.kepuasan.petani + 3);
+    polemik = 'Aktivis lingkungan dan masyarakat adat menggelar aksi. Petani di desamu justru senang ada janji pupuk murah.';
+    kepuasan(s, { petani: 3, pemuda: -1 });
+    s.indeks.lingkungan = clamp(s.indeks.lingkungan - 1);
     n.efek.swasembada = s.hari + 90;
-    dampak.push('Petani +3. Selama 90 hari, menolak pabrik di lahan sawah tidak membuat bupati kesal.');
+    dampak.push('Petani +3, pemuda -1, lingkungan -1.', 'Selama 90 hari, menolak pabrik di lahan sawah tidak membuat bupati kesal.');
   } else if (tema === 'investasi') {
-    judul = 'Presiden: Gelar Karpet Merah untuk Investor, Izin Jangan Dipersulit';
+    judul = 'Presiden: Izin Tambang Juga untuk Ormas, Demo Tolak Investor Dibiayai Asing';
     kutipan = [
-      'Investor datang membawa lapangan kerja. Jangan dipersulit, jangan dimintai macam-macam!',
-      'Izin yang bisa sehari, jangan dibuat sebulan.',
-      'Siapa yang main pungli ke investor, saya minta aparat tindak tegas.',
+      'Investor itu tamu. Tamu jangan dipersulit, jangan dimintai macam-macam!',
+      'Izin tambang kita bagikan juga ke ormas. Biar adil, semua kebagian.',
+      'Yang demo menolak investasi, saya curiga ada yang membayar.',
     ];
+    polemik = 'Ormas di kabupaten langsung merapat ke kantor-kantor desa menanyakan "jatah". Aktivis menyebut ini bagi-bagi konsesi.';
     n.efek.karpet_merah = s.hari + 120;
     n.efek.awasi_pungli = s.hari + 120;
-    dampak.push('Selama 120 hari: perusahaan lebih sering melamar masuk desa, tapi minta uang pelicin jauh lebih berisiko.');
+    s.flags = [...new Set([...(s.flags ?? []), 'ormas_dibayar'])];
+    kepuasan(s, { pemuda: -1 });
+    dampak.push('Selama 120 hari: perusahaan lebih sering melamar, tapi minta uang pelicin jauh lebih berisiko.', 'Ormas makin sering datang minta jatah. Pemuda -1.');
   } else if (tema === 'antikorupsi') {
-    judul = 'Presiden Perintahkan Bersih-bersih Korupsi sampai ke Desa';
+    judul = 'Presiden: Koruptor yang Kembalikan Uang Diam-diam Akan Dimaafkan';
     kutipan = [
-      'Saya tidak akan ragu. Siapa pun yang korupsi, tangkap!',
-      'Dana desa itu besar. Saya minta inspektorat dan aparat periksa sampai ke tingkat desa.',
-      'Kepala desa yang bersih tidak perlu takut.',
+      'Saya beri kesempatan. Koruptor yang mengembalikan uangnya diam-diam, kita maafkan.',
+      'Tapi yang tidak mau mengembalikan, saya kejar sampai ke desa-desa!',
+      'Inspektorat, periksa semua dana desa. Tidak ada yang kebal.',
     ];
+    polemik = 'Pakar hukum menyebutnya "obral pengampunan". Warga desa justru makin rajin membicarakan harta kades.';
     n.efek.antikorupsi = s.hari + 60;
-    dampak.push('Selama 60 hari peluang audit inspektorat naik 20%.');
-  } else {
-    judul = 'Presiden Dorong Desa Digital: Semua Layanan Harus Bisa Lewat Ponsel';
+    s.politik.kecurigaan = clamp(s.politik.kecurigaan + 3);
+    dampak.push('Selama 60 hari peluang audit inspektorat naik 20%.', 'Gosip +3: warga mulai menghitung harta kades.');
+  } else if (tema === 'digital') {
+    judul = 'Presiden: Yang Nyinyir di Medsos Akan Didata, Desa Harus Digital';
     kutipan = [
-      'Anak muda desa jangan cuma jadi penonton. Jadilah pembuat aplikasi!',
-      'Saya ingin surat-menyurat desa bisa diurus dari ponsel, pembayaran pakai QRIS.',
-      'Desa yang melek digital akan kita dukung penuh.',
+      'Saya ingin semua layanan desa bisa lewat ponsel, bayar pakai QRIS.',
+      'Tapi yang nyinyir dan menyebar hoaks di media sosial akan kami data. Kebebasan ada batasnya.',
+      'Anak muda jangan cuma jadi buzzer. Jadilah pembuat aplikasi!',
     ];
-    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda + 2);
+    polemik = 'Tagar #KamiBukanBuzzer menggema. Anak muda desa ramai mengganti foto profil jadi hitam.';
+    kepuasan(s, { pemuda: -2 });
     const digital = (s.usaha?.daftar ?? []).some((u) => u.id === 'sabako' && u.status === 'beroperasi') || sudahBangun(s, 'internet_desa');
     if (digital) {
       pres.relasi = clamp(pres.relasi + 6);
-      dampak.push('Pemuda +2. Desamu sudah melek digital: relasi presiden +6.');
-    } else dampak.push('Pemuda +2.');
+      dampak.push('Desamu sudah melek digital: relasi presiden +6.');
+    }
+    dampak.push('Pemuda -2 (merasa diawasi).');
+  } else if (tema === 'kritik') {
+    judul = 'Presiden: "Kalau Tidak Suka, Silakan Pindah Negara"';
+    kutipan = [
+      'Kritik boleh, tapi jangan menghina. Menghina pemimpin itu menghina bangsa.',
+      'Kalau tidak suka dengan pemerintah, silakan pindah negara. Pintu terbuka lebar.',
+      'Yang kerjanya cuma mengkritik, coba sekali-sekali bikin sesuatu.',
+    ];
+    polemik = 'Potongan video "silakan pindah negara" ditonton jutaan kali. Perantau desamu ramai berkomentar dari kota.';
+    kepuasan(s, { pemuda: -3, perantau: -2, tokoh: 1 });
+    dampak.push('Pemuda -3, perantau -2, tokoh +1.', 'Mengkritik pidato ini lebih berisiko dilaporkan.');
+  } else {
+    judul = 'Presiden: PPN Naik Jadi 12 Persen, "Ini untuk Rakyat Juga"';
+    kutipan = [
+      'Pajak naik sedikit, tapi tenang, ini untuk rakyat juga.',
+      'Barang mewah saja yang kena. Beras dan sayur? Ya, nanti kita lihat.',
+      'Rakyat yang taat pajak adalah rakyat yang cinta tanah air.',
+    ];
+    polemik = 'Pedagang pasar mengeluh harga grosir ikut naik. Ojek dan warung menaikkan tarif "menyesuaikan".';
+    kepuasan(s, { pedagang: -3, pkk: -1 });
+    dampak.push('Pedagang -3, ibu-ibu -1.');
   }
-  const p: Pidato = { id: `p${n.nomor++}`, hari: s.hari, tema, judul, kutipan, dampak, tanggapan: null };
-  tambahBerita(s, { judul, isi: `${pres.nama}: "${kutipan[0]}"`, sumber: 'Kabar Nusantara', kategori: 'nasional', dampak: dampak.join(' ') });
+  const p: Pidato = { id: `p${n.nomor++}`, hari: s.hari, tema, judul, kutipan, dampak, polemik, tanggapan: null };
+  tambahBerita(s, { judul, isi: `${pres.nama}: "${kutipan[1] ?? kutipan[0]}" ${polemik}`, sumber: 'Kabar Nusantara', kategori: 'nasional', dampak: dampak.join(' ') });
   catat('politik', `Pidato Presiden ${pres.nama}: ${judul}. ${dampak.join(' ')}`);
   return p;
 }
@@ -332,15 +373,22 @@ export function tanggapiPidato(s: VillageState, tanggapan: 'dukung' | 'diam' | '
   p.tanggapan = tanggapan;
   const pres = stateRelasi(s).tokoh.presiden;
   if (tanggapan === 'dukung') {
-    pres.relasi = clamp(pres.relasi + 4);
-    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 1);
-    return 'Kades mengunggah potongan pidato presiden dengan tulisan "Siap laksanakan!". Akun resmi kabupaten ikut membagikan. (relasi presiden +4)';
+    // membela pidato yang kontroversial: disukai pusat, dicibir anak muda
+    pres.relasi = clamp(pres.relasi + 5);
+    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 2);
+    s.popularitas = clamp(s.popularitas - 1);
+    return 'Kades mengunggah potongan pidato dengan tulisan "Siap laksanakan!". Akun resmi kabupaten ikut membagikan, tapi kolom komentar penuh cibiran. (relasi presiden +5, pemuda -2, popularitas -1)';
   }
   if (tanggapan === 'kritik') {
     pres.relasi = clamp(pres.relasi - 8);
-    s.popularitas = clamp(s.popularitas + 2);
-    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda + 3);
-    return 'Kades menulis kritik panjang soal pidato itu di media sosial. Anak muda membagikannya, pejabat pusat mencatat namanya. (relasi presiden -8, popularitas +2)';
+    s.popularitas = clamp(s.popularitas + 3);
+    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda + 4);
+    const risiko = p.tema === 'kritik' || p.tema === 'digital' ? 0.3 : 0.12;
+    if (nextRandom(s) < risiko) {
+      s.politik.kecurigaan = clamp(s.politik.kecurigaan + 6);
+      return 'Kritik kades viral. Seorang pendukung presiden melaporkannya ke polisi dengan pasal ujaran kebencian. Kasusnya menggantung. (relasi presiden -8, popularitas +3, gosip +6)';
+    }
+    return 'Kades menulis kritik panjang soal pidato itu di media sosial. Anak muda membagikannya ramai-ramai, pejabat pusat mencatat namanya. (relasi presiden -8, popularitas +3, pemuda +4)';
   }
   return 'Kades memilih tidak berkomentar. Aman, tapi tidak ada yang ingat.';
 }
@@ -358,7 +406,7 @@ export function harianBerita(s: VillageState, catat: Catat): void {
   // pidato yang tidak ditanggapi 30 hari dianggap diam
   if (n.pidato && !n.pidato.tanggapan && s.hari - n.pidato.hari > 30) n.pidato.tanggapan = 'diam';
   if (s.hari >= n.pidatoBerikut) {
-    const tema: TemaPidato[] = ['efisiensi', 'mbg_kopdes', 'swasembada', 'investasi', 'antikorupsi', 'digital'];
+    const tema: TemaPidato[] = ['efisiensi', 'mbg_kopdes', 'swasembada', 'investasi', 'antikorupsi', 'digital', 'kritik', 'pajak'];
     const kandidat = tema.filter((t) => s.hari >= (n.jeda[`pidato:${t}`] ?? 0));
     const pilih = (kandidat.length ? kandidat : tema)[Math.floor(nextRandom(s) * (kandidat.length || tema.length))];
     n.jeda[`pidato:${pilih}`] = s.hari + 300;
@@ -395,6 +443,8 @@ export function viewBerita(s: VillageState) {
           judul: p.judul,
           kutipan: p.kutipan,
           dampak: p.dampak,
+          polemik: p.polemik ?? '',
+          tema: p.tema,
           tanggapan: p.tanggapan,
           presiden: pres.nama,
           perempuan: presidenPerempuan(pres.nama),

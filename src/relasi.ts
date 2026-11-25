@@ -281,6 +281,8 @@ export interface Wakil {
   loyalitas: number;
   ambisi: number;
   sejakHari?: number;
+  /** Tunjangan sedang telat (supaya pemberitahuan cukup sekali per masa telat). */
+  telat?: boolean;
 }
 
 export interface Mosi {
@@ -854,10 +856,13 @@ export function bulananRelasi(s: VillageState, catat: Catat): void {
   const w = r.wakil;
   if (w) {
     // tunjangan wakil: kalau kas kosong tidak dibayar, dan wakil makin kecewa
-    if (s.kas >= TUNJANGAN_WAKIL) arus(s, 'Gaji perangkat', -TUNJANGAN_WAKIL);
-    else {
+    if (s.kas >= TUNJANGAN_WAKIL) {
+      arus(s, 'Gaji perangkat', -TUNJANGAN_WAKIL);
+      w.telat = false;
+    } else {
       w.loyalitas = clamp(w.loyalitas - 6);
-      catat('buruk', `Tunjangan wakil kades ${w.nama} telat dibayar karena kas kosong. (loyalitas -6)`);
+      if (!w.telat) catat('buruk', `Tunjangan wakil kades ${w.nama} telat dibayar karena kas kosong. Loyalitasnya turun setiap bulan sampai dibayar.`);
+      w.telat = true;
     }
     const b = LATAR_WAKIL[w.latar].bulanan;
     if (b?.kas && s.kas >= -b.kas) arus(s, 'Operasional kantor', b.kas);

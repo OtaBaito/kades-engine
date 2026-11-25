@@ -54,6 +54,8 @@ export interface RingkasanPergi {
   kartuBaru: number;
   keluhanBaru: number;
   pentingnya: string[];
+  /** Waktu desa berhenti menunggu keputusan pemain (audit, mosi). */
+  krisis?: string | null;
 }
 
 export function buatRingkasanPergi(sebelum: VillageState, sesudah: VillageState, hari: number, events: { jenis: string; teks: string }[]): RingkasanPergi {
@@ -72,5 +74,6 @@ export function buatRingkasanPergi(sebelum: VillageState, sesudah: VillageState,
     kartuBaru: sesudah.kotakMasuk.filter((k) => !idLama.has(k.instanceId)).length,
     keluhanBaru: (sesudah.aspirasi ?? []).filter((a) => !keluhanLama.has(a.id)).length,
     pentingnya: [...new Set(penting)].slice(-6),
+    krisis: sesudah.politik?.kasus ? 'audit inspektorat' : sesudah.relasi?.mosi ? 'mosi pemakzulan dari BPD' : null,
   };
 }

@@ -48,6 +48,15 @@ export function botTurn(state: VillageState, bot: BotName, rand: () => number): 
       if (s.unjuk?.penanganan || s.unjuk !== sebelum) break;
     }
   }
+  // audit inspektorat: jujur mengembalikan, serakah menyuap, acak sembarang
+  if (s.politik.kasus) {
+    const urut: ('kembalikan' | 'suap' | 'kambing_hitam' | 'pasrah' | 'ngeles')[] =
+      bot === 'jujur' ? ['kembalikan', 'pasrah'] : bot === 'serakah' ? ['suap', 'kambing_hitam', 'kembalikan', 'pasrah'] : [(['kembalikan', 'suap', 'kambing_hitam', 'ngeles', 'pasrah'] as const)[Math.floor(rand() * 5)], 'pasrah'];
+    for (const pilihan of urut) {
+      if (!s.politik.kasus) break;
+      coba({ type: 'hadapi_audit', pilihan });
+    }
+  }
   // politik ke atas: jujur netral dan rajin rapat terbuka; serakah melobi dan mengerahkan; acak sembarang
   const rl = s.relasi;
   if (rl) {

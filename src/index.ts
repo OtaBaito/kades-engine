@@ -21,7 +21,7 @@ export { GROUPS } from './content/groups.ts';
 export { PROJECTS, PROJECT_BY_ID } from './content/projects.ts';
 export { FITUR, normalisasi, pulihkanPilihan, xpNaikLevel } from './fitur.ts';
 export { ASPIRASI, BUMDES, DEKORASI, JUMLAH_RUMAH, PEGAWAI, PENCAPAIAN } from './content/fitur.ts';
-export { TIPE_DESA, biayaUpgrade } from './engine.ts';
+export { TIPE_DESA, biayaUpgrade, krisisAktif } from './engine.ts';
 export { KREDIT } from './kredit.ts';
 export { REKANAN, maksProyek } from './rekanan.ts';
 export { MEGA } from './mega.ts';

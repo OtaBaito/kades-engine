@@ -296,3 +296,15 @@ test('pegawai: kursi kosong berakibat, kursi terisi berpengaruh nyata', async ()
   assert.ok(faktorPemicuPegawai(s) < 1);
   assert.ok(redamUnjuk(s) > 0);
 });
+
+test('offline: waktu berhenti saat ada audit atau mosi, supaya pemain tidak ditangkap saat pergi', () => {
+  let s = advance(baru('offline'), 40).state;
+  s.politik.kasus = { mulai: s.hari, batas: s.hari + 10, nilai: 50_000_000 };
+  const hari = s.hari;
+  const r = advance(s, 60, { tungguKrisis: true }).state;
+  assert.equal(r.hari, hari, 'waktu tidak maju');
+  assert.equal(r.status, 'menjabat');
+  // tanpa opsi (sedang dimainkan), tenggat tetap berjalan
+  const online = advance(s, 60).state;
+  assert.ok(online.hari > hari);
+});
