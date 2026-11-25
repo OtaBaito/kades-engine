@@ -16,7 +16,7 @@ const JT = 1_000_000;
 const clamp = (v: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 type Catat = (j: 'info' | 'baik' | 'buruk' | 'politik', t: string) => void;
 
-export type GambarUsaha = 'kantor_kaca' | 'studio_digital' | 'pabrik' | 'kandang' | 'kebun_kopi' | 'gudang' | 'tambang' | 'pabrik_air' | 'peternakan_sapi';
+export type GambarUsaha = 'kantor_kaca' | 'studio_digital' | 'studio_media' | 'pabrik' | 'kandang' | 'kebun_kopi' | 'gudang' | 'tambang' | 'pabrik_air' | 'peternakan_sapi';
 
 export interface UsahaDef {
   id: string;
@@ -87,6 +87,25 @@ export const USAHA: UsahaDef[] = [
     plus: ['30 lowongan programmer dan desainer', 'Sensor IoT irigasi: petani +0,3/bln', 'Aplikasi layanan desa: popularitas naik pelan', 'Disukai presiden saat pidato desa digital'],
     minus: ['Menolak uang pelicin dan bisa melaporkannya'],
     csr: 35 * JT,
+    pelicin: 0,
+    bersih: true,
+  },
+  {
+    id: 'ohayou',
+    nama: 'PT Lembur Demi Waifu',
+    bidang: 'Media pop culture: anime, game, film, dan budaya Jepang',
+    teks: 'Penerbit The Ohayou Post (ohayoupost.com) ingin membuka kantor redaksi dan studio konten: liputan anime, game, dan film, siaran langsung event cosplay, plus kelas menulis dan bikin konten untuk anak muda desa.',
+    gambar: 'studio_media',
+    papan: 'OHAYOU POST',
+    minLevel: 2,
+    investasi: 900 * JT,
+    tenagaKerja: 18,
+    durasiHari: 30,
+    minta: { izin: 'Izin kantor redaksi dan event cosplay tahunan di lapangan desa' },
+    bulanan: { kas: 2 * JT, kepuasan: { pemuda: 0.8, perantau: 0.3, tokoh: -0.1 }, popularitas: 0.3 },
+    plus: ['18 lowongan penulis, editor video, dan desainer', 'Desa sering diliput media pop culture: popularitas naik pelan', 'Event cosplay tahunan: pemuda +0,8/bln', 'Perantau ikut bangga desanya viral: +0,3/bln'],
+    minus: ['Sebagian tokoh sepuh mengernyit soal event cosplay', 'Menolak uang pelicin dan bisa memberitakannya'],
+    csr: 20 * JT,
     pelicin: 0,
     bersih: true,
   },
