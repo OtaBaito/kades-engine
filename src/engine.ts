@@ -660,8 +660,12 @@ export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label
   return Math.min(menurutLevel, menurutPendapatan);
 }
 
-/** Biaya konsumsi musyawarah warga di balai desa. */
-export const BIAYA_MUSYAWARAH = 2 * JT;
+/** Biaya musyawarah warga (konsumsi, undangan, sound system): ikut ukuran pemasukan desa, minimal Rp 2 jt. */
+export function biayaMusyawarah(state: VillageState): number {
+  const lap = (state.laporan ?? []).slice(-3);
+  const rataMasuk = lap.length ? lap.reduce((t, l) => t + (l.pemasukan ?? 0), 0) / lap.length : 0;
+  return Math.max(2 * JT, Math.round((rataMasuk * 0.01) / 500_000) * 500_000);
+}
 
 /** Efek akhir satu opsi kartu: skala uang, biaya kampanye, hasil nego, dan hasil musyawarah. */
 export function efekKartuPending(state: VillageState, card: CardDef, opsi: CardOption, pending?: PendingCard): Effect {
@@ -715,8 +719,12 @@ function rembugKartu(state: VillageState, instanceId: string, cara: CaraRembug, 
   if (cara === 'musyawarah') {
     if (card.kategori === 'kampanye') throw new GameError('Urusan kampanye tidak dibawa ke musyawarah desa.');
     if (pending.musyawarah) throw new GameError('Surat ini sudah dimusyawarahkan.');
-    if (state.kas < BIAYA_MUSYAWARAH) throw new GameError(`Kas tidak cukup untuk konsumsi musyawarah (${formatRupiah(BIAYA_MUSYAWARAH)}).`);
-    addKas(state, -BIAYA_MUSYAWARAH, 'Operasional kantor');
+    const siapM = state.politik.jeda['rembug:musyawarah'];
+    if (siapM !== undefined && state.hari < siapM) throw new GameError(`Warga baru bisa dikumpulkan lagi untuk musyawarah dalam ${siapM - state.hari} hari.`);
+    const biaya = biayaMusyawarah(state);
+    if (state.kas < biaya) throw new GameError(`Kas tidak cukup untuk musyawarah (${formatRupiah(biaya)}).`);
+    addKas(state, -biaya, 'Operasional kantor');
+    state.politik.jeda['rembug:musyawarah'] = state.hari + 5;
     pending.musyawarah = true;
     const urut = [...opsi].sort((a, b) => totalKepuasan(efekKartuBerskala(b.effect, 1)) - totalKepuasan(efekKartuBerskala(a.effect, 1)));
     const suara = `Rembug warga di balai: kebanyakan condong ke "${label(urut[0])}"` + (urut.length > 1 ? `, paling banyak yang keberatan dengan "${label(urut[urut.length - 1])}".` : '.');
@@ -730,11 +738,28 @@ function rembugKartu(state: VillageState, instanceId: string, cara: CaraRembug, 
     if (siap !== undefined && state.hari < siap) throw new GameError(`Para tokoh baru bisa diajak rembug lagi dalam ${siap - state.hari} hari.`);
     state.politik.jeda['rembug:tokoh'] = state.hari + 2;
     pending.tokoh = true;
-    const berisiko = opsi.filter((o) => o.risiko);
-    const saran = berisiko.length
-      ? berisiko.map((o) => `"${label(o)}" ${o.risiko!.peluang >= 0.5 ? 'besar kemungkinan' : 'bisa jadi'} berbuntut: ${o.risiko!.pesan.replace(/\.$/, '')}.`).join(' ')
-      : 'Tidak ada jebakan tersembunyi yang terlihat di pilihan mana pun.';
-    const pilihan = [...opsi].sort((a, b) => ((b.effect.kepuasan?.tokoh ?? 0) + (b.effect.integritas ?? 0)) - ((a.effect.kepuasan?.tokoh ?? 0) + (a.effect.integritas ?? 0)))[0];
+    // yang tidak terlihat di label: risiko tersembunyi, urusan yang akan kembali, dan buntut jangka panjang
+    const bisik: string[] = [];
+    for (const o of opsi) {
+      const e = o.effect;
+      if (o.risiko) bisik.push(`"${label(o)}" ${o.risiko.peluang >= 0.5 ? 'besar kemungkinan' : 'bisa jadi'} berbuntut: ${o.risiko.pesan.replace(/\.$/, '')}.`);
+      if (e.jadwalKartu) bisik.push(`"${label(o)}" belum menuntaskan masalah; urusannya akan kembali sekitar ${e.jadwalKartu.setelahHari} hari lagi.`);
+      if ((e.kecurigaan ?? 0) >= 5) bisik.push(`"${label(o)}" akan jadi bahan omongan warga; gosip tentang kades naik.`);
+      if ((e.pemasukanBulanan ?? 0) > 0) bisik.push(`"${label(o)}" memberi pemasukan rutin tiap bulan.`);
+      if ((e.pemasukanBulanan ?? 0) < 0) bisik.push(`"${label(o)}" menambah beban rutin tiap bulan.`);
+      if (e.setFlag?.some((f) => f.startsWith('dimusuhi_'))) bisik.push(`"${label(o)}" membuat pejabat di atas tersinggung.`);
+      if (e.setFlag?.some((f) => f.startsWith('restu_'))) bisik.push(`"${label(o)}" disukai pejabat di atas.`);
+    }
+    // kelompok paling dirugikan tiap opsi, supaya kades tahu siapa yang perlu didatangi sesudahnya
+    const rugi = opsi
+      .map((o) => {
+        const k = Object.entries(o.effect.kepuasan ?? {}).sort((a, b) => (a[1] as number) - (b[1] as number))[0];
+        return k && (k[1] as number) <= -4 ? `"${label(o)}" melukai hati ${GROUPS.find((g) => g.id === k[0])?.nama ?? k[0]}; datangi mereka sesudahnya.` : null;
+      })
+      .filter(Boolean) as string[];
+    const saran = [...bisik, ...rugi].slice(0, 4).join(' ') || 'Semua pilihan sudah terang; tidak ada buntut tersembunyi yang mereka lihat.';
+    const nilai = (o: CardOption) => (o.effect.kepuasan?.tokoh ?? 0) * 2 + (o.effect.integritas ?? 0) + (o.effect.indeks?.sosial ?? 0) - (o.risiko ? 5 : 0) - (o.effect.jadwalKartu ? 2 : 0);
+    const pilihan = [...opsi].sort((a, b) => nilai(b) - nilai(a))[0];
     pending.catatan.push(`Saran tokoh masyarakat: ${saran} Mereka sendiri condong ke "${label(pilihan)}".`);
     return `${judul}: tokoh masyarakat dimintai saran. ${saran}`;
   }

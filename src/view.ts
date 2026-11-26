@@ -35,7 +35,7 @@ import {
   judulKartu,
   efekKartuPending,
   bisaDitawar,
-  BIAYA_MUSYAWARAH,
+  biayaMusyawarah,
   efekKartuBerskala,
   skalaUangKartu,
   skorDesa,
@@ -189,7 +189,8 @@ export function buildView(state: VillageState) {
           musyawarah: card.kategori !== 'kampanye' && !k.musyawarah,
           tokoh: !k.tokoh,
           nego: !k.nego && bisaDitawar(state, card),
-          biayaMusyawarah: BIAYA_MUSYAWARAH,
+          biayaMusyawarah: biayaMusyawarah(state),
+          musyawarahSiapDalam: Math.max(0, (state.politik.jeda['rembug:musyawarah'] ?? 0) - state.hari),
           tokohSiapDalam: Math.max(0, (state.politik.jeda['rembug:tokoh'] ?? 0) - state.hari),
         },
         opsi: opsiTersedia(state, card).map((o) => {
