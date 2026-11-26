@@ -257,6 +257,9 @@ const NAMA_WAKIL = {
   p: ['Bu Warsini', 'Mbak Ningrum', 'Bu Kartini', 'Teh Euis', 'Mbak Sekar', 'Bu Murni', 'Mbak Laras', 'Bu Yati', 'Mbak Ratih', 'Bu Sumarni', 'Teh Neneng', 'Mbak Dinda', 'Bu Harini', 'Mbak Wening', 'Teh Rini', 'Bu Endang'],
 };
 
+/** Nama belakang untuk membedakan calon kalau nama depan di desa ini sudah habis terpakai. */
+const NAMA_BELAKANG = ['Wibowo', 'Saputra', 'Hidayat', 'Kurniawan', 'Prasetyo', 'Lestari', 'Rahayu', 'Santoso', 'Nugroho', 'Wulandari', 'Firmansyah', 'Permana'];
+
 /** Tunjangan wakil kades dari kas desa per bulan. */
 export const TUNJANGAN_WAKIL = 3 * JT;
 
@@ -672,7 +675,7 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
     r.namaWakil = [...new Set([...(r.namaWakil ?? r.kandidatWakil.map((k) => k.nama)), w.nama])];
     r.kandidatWakil = r.kandidatWakil.filter((k) => k.id !== w.id);
     terapkan(s, r, def.saatMasuk);
-    return `${w.nama} (${def.nama.toLowerCase()}) dilantik jadi wakil kades.`;
+    return `${w.nama} (${namaLatarWakil(w.latar, w.nama).toLowerCase()}) dilantik jadi wakil kades.`;
   }
   const w = r.wakil;
   if (!w) throw new GameError('Belum ada wakil kades.');
@@ -720,8 +723,9 @@ export function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
     const l = latar.splice(Math.floor(nextRandom(s) * latar.length), 1)[0];
     const def = LATAR_WAKIL[l];
     const g = nextRandom(s) < 0.35 ? 'p' : 'l';
-    // nama yang belum pernah dipakai di desa ini; kalau semua sudah terpakai (jarang), boleh berulang
-    const sisa = NAMA_WAKIL[g].filter((n) => !dipakai.has(n) && !intiLain.has(namaInti(n)));
+    // nama yang belum pernah dipakai di desa ini; kalau stok habis, pakai nama lengkap dengan nama belakang
+    let sisa = NAMA_WAKIL[g].filter((n) => !dipakai.has(n) && !intiLain.has(namaInti(n)));
+    if (!sisa.length) sisa = NAMA_WAKIL[g].flatMap((n) => NAMA_BELAKANG.map((b) => `${n} ${b}`)).filter((n) => !dipakai.has(n));
     const nama = pilihAcak(s, sisa.length ? sisa : NAMA_WAKIL[g]);
     dipakai.add(nama);
     r.namaWakil.push(nama);
@@ -1083,20 +1087,26 @@ export function viewRelasi(s: VillageState) {
           panggung: Math.round(panggung(r.wakil)),
           ijazahTerbukti: Boolean(r.wakil.ijazahTerbukti),
           ijazahDiuji: Boolean(r.wakil.ijazahDiuji),
-          ...latarView(r.wakil.latar),
+          ...latarView(r.wakil.latar, r.wakil.nama),
           membelot: wakilMembelot(r, s.hari),
         }
       : null,
-    kandidatWakil: r.kandidatWakil.map((k) => ({ id: k.id, nama: k.nama, latar: k.latar, loyalitas: k.loyalitas, ambisi: k.ambisi, panggung: Math.round(panggung(k)), ...latarView(k.latar) })),
+    kandidatWakil: r.kandidatWakil.map((k) => ({ id: k.id, nama: k.nama, latar: k.latar, loyalitas: k.loyalitas, ambisi: k.ambisi, panggung: Math.round(panggung(k)), ...latarView(k.latar, k.nama) })),
     wakilPolitik: viewWakilPolitik(s, r),
     tunjanganWakil: TUNJANGAN_WAKIL,
     jedaWakil: { cari: sisa('wakil:cari'), rangkul: sisa('wakil:rangkul'), ganti: sisa('wakil:ganti') },
   };
 }
 
-function latarView(l: LatarWakil) {
+function latarView(l: LatarWakil, nama?: string) {
   const d = LATAR_WAKIL[l];
-  return { namaLatar: d.nama, plus: d.plus, minus: d.minus };
+  return { namaLatar: namaLatarWakil(l, nama), plus: d.plus, minus: d.minus };
+}
+
+/** Nama latar sesuai gender dari sapaan: "Putri pejabat kabupaten" untuk Bu/Mbak/Teh. */
+export function namaLatarWakil(l: LatarWakil, nama?: string): string {
+  const n = LATAR_WAKIL[l].nama;
+  return nama && /^(bu|mbak|teh|ibu)\s/i.test(nama) ? n.replace(/^Putra /, 'Putri ') : n;
 }
 
 /** Perkiraan arus kas bulanan dari perdes dan wakil kades (untuk laporan keuangan). */

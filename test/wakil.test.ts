@@ -99,7 +99,7 @@ test('wakil baru belum terhitung membelot; nama calon tidak berulang dengan lata
   const r2 = stateRelasi(s);
   r2.wakil = null;
   const lihat = new Set<string>(['Mas Bowo']);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 20; i++) {
     stateRelasi(s).jeda['wakil:cari'] = 0;
     s = applyAction(s, { type: 'wakil', aksi: 'cari' }).state;
     for (const k of stateRelasi(s).kandidatWakil) {
@@ -135,4 +135,10 @@ test('pilkades: suara terbanyak menang, jurnal menyebut pemenang', async () => {
   const bagi = bagiSuaraLawan([{ nama: 'A', kekuatan: 70 }, { nama: 'B', kekuatan: 50 }], 60);
   assert.ok(bagi[0].persen > bagi[1].persen * 2, 'suara lawan terkumpul ke penantang terkuat');
   assert.ok(Math.abs(bagi[0].persen + bagi[1].persen - 60) < 0.2);
+});
+
+test('label latar ikut gender: putri pejabat untuk perempuan', async () => {
+  const { namaLatarWakil } = await import('../src/relasi.ts');
+  assert.equal(namaLatarWakil('anak_pejabat', 'Mbak Sekar'), 'Putri pejabat kabupaten');
+  assert.equal(namaLatarWakil('anak_pejabat', 'Mas Aris'), 'Putra pejabat kabupaten');
 });

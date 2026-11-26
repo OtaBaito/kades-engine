@@ -377,7 +377,7 @@ export function harianWakil(s: VillageState, r: StateRelasi, catat: Catat): void
     if (wakilMembelot(r, s.hari) || (w.loyalitas < 40 && w.ambisi >= 60 && s.hari - (w.sejakHari ?? 0) >= 30)) tanda.add('wk_belot');
     // isu ijazah tidak menimpa semua wakil: putra pejabat hampir selalu digoyang, yang lain sebagian saja
     const digoyang = w.latar === 'anak_pejabat' || hash(`${w.nama}|${w.id}|isu`) % 100 < 35;
-    if (digoyang && !w.ijazahDiuji && !r.kasusIjazah && s.hari - (w.sejakHari ?? 0) >= 45) tanda.add('wk_ijazah');
+    if (digoyang && !w.ijazahDiuji && !r.kasusIjazah && s.hari - (w.sejakHari ?? 0) >= 21) tanda.add('wk_ijazah');
   }
   s.flags = [...s.flags.filter((f) => !f.startsWith('wk_')), ...tanda];
 }

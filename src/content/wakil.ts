@@ -64,7 +64,7 @@ export const KARTU_WAKIL: CardDef[] = [
   {
     id: 'wakil_dinasti',
     judul: 'Mahasiswa Demo Soal Politik Dinasti',
-    teks: 'Puluhan mahasiswa membentangkan spanduk di depan kantor desa: "Desa bukan warisan keluarga pejabat." Mereka menyoroti {wakil}, putra pejabat kabupaten, yang dulu lolos jadi wakil setelah syarat umurnya "ditafsirkan ulang" oleh panitia yang diketuai pamannya.',
+    teks: 'Puluhan mahasiswa membentangkan spanduk di depan kantor desa: "Desa bukan warisan keluarga pejabat." Mereka menyoroti {wakil}, anak pejabat kabupaten, yang dulu lolos jadi wakil setelah syarat umurnya "ditafsirkan ulang" oleh panitia yang diketuai pamannya.',
     kategori: 'politik',
     bobot: 3,
     jedaHari: 150,
