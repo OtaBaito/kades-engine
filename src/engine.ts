@@ -71,6 +71,9 @@ import type {
   Gender,
   Action,
   CardDef,
+  CardOption,
+  CaraRembug,
+  PendingCard,
   Contractor,
   Effect,
   GroupId,
@@ -657,6 +660,101 @@ export function skalaUangKartu(state: VillageState, card: CardDef, opsi: { label
   return Math.min(menurutLevel, menurutPendapatan);
 }
 
+/** Biaya konsumsi musyawarah warga di balai desa. */
+export const BIAYA_MUSYAWARAH = 2 * JT;
+
+/** Efek akhir satu opsi kartu: skala uang, biaya kampanye, hasil nego, dan hasil musyawarah. */
+export function efekKartuPending(state: VillageState, card: CardDef, opsi: CardOption, pending?: PendingCard): Effect {
+  let e: Effect = efekKampanye(card, efekKartuBerskala(opsi.effect, skalaUangKartu(state, card, opsi)));
+  if (!pending) return e;
+  if (pending.nego && pending.nego !== 1) {
+    const f = pending.nego;
+    e = {
+      ...e,
+      kas: e.kas && e.kas > 0 ? Math.round((e.kas * f) / 100_000) * 100_000 : e.kas,
+      dompet: e.dompet && e.dompet > 0 && card.kategori !== 'kampanye' ? Math.round((e.dompet * f) / 100_000) * 100_000 : e.dompet,
+    };
+  }
+  if (pending.musyawarah) {
+    // keputusan hasil rembug: warga yang kalah suara tetap merasa didengar
+    const lunak = (v: number) => (v < 0 ? Math.round(v * 0.5) : v);
+    const kepuasan = e.kepuasan ? Object.fromEntries(Object.entries(e.kepuasan).map(([g, v]) => [g, lunak(v as number)]).filter(([, v]) => v !== 0)) : undefined;
+    e = {
+      ...e,
+      kepuasan,
+      semuaKepuasan: e.semuaKepuasan ? lunak(e.semuaKepuasan) || undefined : undefined,
+      popularitas: e.popularitas ? lunak(e.popularitas) || undefined : undefined,
+      indeks: { ...(e.indeks ?? {}), sosial: (e.indeks?.sosial ?? 0) + 1 },
+    };
+  }
+  if (pending.tokoh) e = { ...e, kepuasan: { ...(e.kepuasan ?? {}), tokoh: ((e.kepuasan?.tokoh as number) ?? 0) + 1 } };
+  return e;
+}
+
+/** Apakah salah satu opsi kartu ini membawa uang masuk yang bisa ditawar. */
+export function bisaDitawar(state: VillageState, card: CardDef): boolean {
+  if (card.kategori === 'kampanye') return false;
+  return opsiTersedia(state, card).some((o) => (efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)).kas ?? 0) > 0);
+}
+
+function totalKepuasan(e: Effect): number {
+  return Object.values(e.kepuasan ?? {}).reduce((a, b) => a + (b as number), 0) + (e.semuaKepuasan ?? 0) * 6;
+}
+
+/** Rembug sebelum memutuskan: musyawarah warga, minta saran tokoh, atau tawar tawaran. */
+function rembugKartu(state: VillageState, instanceId: string, cara: CaraRembug, catat: Catat): string {
+  const pending = state.kotakMasuk.find((k) => k.instanceId === instanceId);
+  if (!pending) throw new GameError('Kartu keputusan tidak ditemukan atau sudah diputuskan.');
+  const card = CARD_BY_ID.get(pending.cardId);
+  if (!card) throw new GameError('Kartu keputusan tidak valid.');
+  const opsi = opsiTersedia(state, card);
+  const judul = isiTokohStaf(state, pending.stafId, judulKartu(state, card));
+  const label = (o: CardOption) => isiTokohStaf(state, pending.stafId, o.label);
+  pending.catatan ??= [];
+  if (cara === 'musyawarah') {
+    if (card.kategori === 'kampanye') throw new GameError('Urusan kampanye tidak dibawa ke musyawarah desa.');
+    if (pending.musyawarah) throw new GameError('Surat ini sudah dimusyawarahkan.');
+    if (state.kas < BIAYA_MUSYAWARAH) throw new GameError(`Kas tidak cukup untuk konsumsi musyawarah (${formatRupiah(BIAYA_MUSYAWARAH)}).`);
+    addKas(state, -BIAYA_MUSYAWARAH, 'Operasional kantor');
+    pending.musyawarah = true;
+    const urut = [...opsi].sort((a, b) => totalKepuasan(efekKartuBerskala(b.effect, 1)) - totalKepuasan(efekKartuBerskala(a.effect, 1)));
+    const suara = `Rembug warga di balai: kebanyakan condong ke "${label(urut[0])}"` + (urut.length > 1 ? `, paling banyak yang keberatan dengan "${label(urut[urut.length - 1])}".` : '.');
+    pending.catatan.push(`${suara} Apa pun keputusannya, warga merasa dilibatkan: dampak buruk ke warga diperlunak separuh.`);
+    tambahStat(state, 'rapatBpd');
+    return `${judul}: dibawa ke musyawarah warga. ${suara}`;
+  }
+  if (cara === 'tokoh') {
+    if (pending.tokoh) throw new GameError('Tokoh masyarakat sudah dimintai saran untuk surat ini.');
+    const siap = state.politik.jeda['rembug:tokoh'];
+    if (siap !== undefined && state.hari < siap) throw new GameError(`Para tokoh baru bisa diajak rembug lagi dalam ${siap - state.hari} hari.`);
+    state.politik.jeda['rembug:tokoh'] = state.hari + 2;
+    pending.tokoh = true;
+    const berisiko = opsi.filter((o) => o.risiko);
+    const saran = berisiko.length
+      ? berisiko.map((o) => `"${label(o)}" ${o.risiko!.peluang >= 0.5 ? 'besar kemungkinan' : 'bisa jadi'} berbuntut: ${o.risiko!.pesan.replace(/\.$/, '')}.`).join(' ')
+      : 'Tidak ada jebakan tersembunyi yang terlihat di pilihan mana pun.';
+    const pilihan = [...opsi].sort((a, b) => ((b.effect.kepuasan?.tokoh ?? 0) + (b.effect.integritas ?? 0)) - ((a.effect.kepuasan?.tokoh ?? 0) + (a.effect.integritas ?? 0)))[0];
+    pending.catatan.push(`Saran tokoh masyarakat: ${saran} Mereka sendiri condong ke "${label(pilihan)}".`);
+    return `${judul}: tokoh masyarakat dimintai saran. ${saran}`;
+  }
+  if (!bisaDitawar(state, card)) throw new GameError('Tidak ada tawaran uang yang bisa ditawar di surat ini.');
+  if (pending.nego) throw new GameError('Tawaran ini sudah ditawar sekali.');
+  const peluang = Math.max(0.1, Math.min(0.8, 0.3 + (state.popularitas - 50) / 200 + (state.integritas - 50) / 250 + (pending.musyawarah ? 0.15 : 0)));
+  if (nextRandom(state) < peluang) {
+    pending.nego = 1.3;
+    pending.catatan.push('Hasil tawar-menawar: penawar setuju menaikkan nilai tawaran 30%.');
+    return `${judul}: tawar-menawar berhasil, nilai tawaran naik 30%.`;
+  }
+  if (card.kategori === 'peluang' && !card.bersambung && nextRandom(state) < 0.4) {
+    state.kotakMasuk = state.kotakMasuk.filter((k) => k !== pending);
+    catat('buruk', `${judul}: penawar tersinggung ditawar terlalu tinggi dan menarik tawarannya.`);
+    return `${judul}: tawar-menawar gagal, penawar menarik tawarannya.`;
+  }
+  pending.nego = 0.85;
+  pending.catatan.push('Hasil tawar-menawar: penawar tersinggung dan menurunkan nilai tawaran 15%.');
+  return `${judul}: tawar-menawar gagal, nilai tawaran turun 15%.`;
+}
+
 /** Kartu kampanye: biayanya uang pribadi calon, bukan kas desa. */
 export function efekKampanye<E extends { kas?: number; dompet?: number }>(card: CardDef, e: E): E {
   if (card.kategori !== 'kampanye' || !e.kas || e.kas > 0) return e;
@@ -953,6 +1051,12 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     return { state, events };
   }
 
+  if (action.type === 'rembug_kartu') {
+    const pesan = rembugKartu(state, action.instanceId, action.cara, catat);
+    events.unshift({ hari: state.hari, jenis: 'info', teks: pesan });
+    return { state, events };
+  }
+
   if (action.type === 'putuskan') {
     const pending = state.kotakMasuk.find((k) => k.instanceId === action.instanceId);
     if (!pending) throw new GameError('Kartu keputusan tidak ditemukan atau sudah diputuskan.');
@@ -960,7 +1064,7 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
     const tersedia = card ? opsiTersedia(state, card) : [];
     const opsi = tersedia.find((o) => o.id === action.opsiId);
     if (!card || !opsi) throw new GameError('Opsi keputusan tidak valid.');
-    const efek = efekKampanye(card, efekKartuBerskala(opsi.effect, skalaUangKartu(state, card, opsi)));
+    const efek = efekKartuPending(state, card, opsi, pending);
     if (card.kategori === 'kampanye' && (efek.dompet ?? 0) < 0 && state.politik.dompet < -(efek.dompet ?? 0)) {
       throw new GameError(`Uang pribadimu kurang untuk biaya kampanye ini. Butuh ${formatRupiah(-(efek.dompet ?? 0))}.`);
     }

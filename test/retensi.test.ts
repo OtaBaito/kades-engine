@@ -311,3 +311,28 @@ test('pertumbuhan tanpa batas: proyek besar bisa dikembangkan bertahap, skor Pem
   assert.ok(s.pemasukanTambahanBulanan >= def.pemasukanBulanan * 2);
   assert.ok(raporWarisan(s).pembangunan > skor1);
 });
+
+test('rembug kartu: musyawarah melunakkan dampak, tokoh membuka risiko, nego mengubah nilai tawaran', () => {
+  let s = baru('rembug');
+  s.kotakMasuk = [{ instanceId: 'r1', cardId: 'acak_tawaran_0_0', hariMasuk: s.hari }];
+  const kas = s.kas;
+  s = applyAction(s, { type: 'rembug_kartu', instanceId: 'r1', cara: 'musyawarah' }).state;
+  assert.equal(s.kas, kas - 2_000_000);
+  assert.ok(s.kotakMasuk[0].musyawarah);
+  assert.throws(() => applyAction(s, { type: 'rembug_kartu', instanceId: 'r1', cara: 'musyawarah' }), GameError);
+  s = applyAction(s, { type: 'rembug_kartu', instanceId: 'r1', cara: 'tokoh' }).state;
+  assert.ok(s.kotakMasuk[0].catatan!.some((c) => c.startsWith('Saran tokoh')));
+  s = applyAction(s, { type: 'rembug_kartu', instanceId: 'r1', cara: 'nego' }).state;
+  const k = s.kotakMasuk.find((x) => x.instanceId === 'r1');
+  assert.ok(!k || k.nego === 1.3 || k.nego === 0.85);
+});
+
+test('aksi gelap baru: beking narkoba memberi uang besar dan menaikkan kecurigaan', () => {
+  let s = baru('gelap');
+  const dompet = s.politik.dompet;
+  const curiga = s.politik.kecurigaan;
+  s = applyAction(s, { type: 'aksi_gelap', jenis: 'beking_narkoba' }).state;
+  assert.equal(s.politik.dompet, dompet + 50_000_000);
+  assert.ok(s.politik.kecurigaan >= curiga + 18);
+  assert.throws(() => applyAction(s, { type: 'aksi_gelap', jenis: 'beking_narkoba' }), GameError);
+});

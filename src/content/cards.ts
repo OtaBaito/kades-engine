@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 53 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 54 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardDef } from '../types.ts';
 
@@ -2824,6 +2824,51 @@ export const CARDS: CardDef[] = [
           "kas": -3000000,
           "kepuasan": {
             "tokoh": 2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "acak_tawaran_0_0",
+    "judul": "Tawaran Dana Hibah Yayasan",
+    "teks": "Ada tawaran dana hibah yayasan untuk desa, cair ke rekening kas. Perantaranya Bu Juminten, yang minta \"dibantu kelancarannya\".",
+    "kategori": "peluang",
+    "bobot": 0.05,
+    "sekali": true,
+    "grup": "tawaran",
+    "warga": "Bu Juminten",
+    "opsi": [
+      {
+        "id": "terima",
+        "label": "Terima lewat jalur resmi",
+        "effect": {
+          "kas": 3000000,
+          "indeks": {
+            "ekonomi": 1
+          },
+          "kepuasan": {
+            "tokoh": -1
+          }
+        }
+      },
+      {
+        "id": "sunat",
+        "label": "Terima, sebagian masuk kantong",
+        "effect": {
+          "kas": 1500000,
+          "dompet": 2000000,
+          "kecurigaan": 5,
+          "integritas": -2
+        }
+      },
+      {
+        "id": "tolak",
+        "label": "Tolak, banyak syaratnya",
+        "effect": {
+          "integritas": 2,
+          "kepuasan": {
+            "tokoh": 1
           }
         }
       }

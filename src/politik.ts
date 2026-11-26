@@ -99,6 +99,18 @@ export const AKSI_GELAP: Record<JenisAksiGelap, { nama: string; teks: string; je
   fee_kontraktor: { nama: 'Minta fee kontraktor', teks: 'Kontraktor proyek setor "uang terima kasih" ke kades.', jeda: 25 },
   sewa_bengkok: { nama: 'Sewakan tanah kas desa', teks: 'Tanah kas desa disewakan ke kenalan. Uang sewanya tidak lewat kas.', jeda: 30 },
   potong_bantuan: { nama: 'Potong dana bantuan', teks: 'Bantuan untuk warga "dipotong biaya administrasi".', jeda: 35 },
+  rokok_ilegal: { nama: 'Sewakan gudang rokok ilegal', teks: 'Gudang desa disewakan diam-diam untuk menimbun rokok tanpa pita cukai. Warung warga ikut menjualnya.', jeda: 30 },
+  internet_ilegal: { nama: 'Bekingi internet ilegal', teks: 'Jaringan internet tanpa izin menumpang tiang dan menara desa. Pengelolanya setor tiap bulan.', jeda: 30 },
+  beking_judol: { nama: 'Bekingi bandar judi online', teks: 'Agen judi online meminjam rekening warga dan butuh kades tutup mata. Bayarannya besar, korbannya keluarga warga sendiri.', jeda: 30 },
+  beking_narkoba: { nama: 'Bekingi pengedar narkoba', teks: 'Pengedar minta desa "aman" dari razia. Uangnya paling besar, risikonya juga: sekali tertangkap, tamat.', jeda: 45 },
+};
+
+/** Aksi gelap berisiko tinggi: bisa langsung terbongkar aparat. */
+const GEREBEK: Partial<Record<JenisAksiGelap, { peluang: number; pesan: string; kecurigaan: number; popularitas: number }>> = {
+  rokok_ilegal: { peluang: 0.12, pesan: 'Petugas bea cukai menyegel gudang desa berisi rokok tanpa pita cukai. Nama kades disebut-sebut.', kecurigaan: 15, popularitas: 5 },
+  internet_ilegal: { peluang: 0.1, pesan: 'Petugas pengawas frekuensi menyita perangkat internet ilegal di menara desa.', kecurigaan: 10, popularitas: 3 },
+  beking_judol: { peluang: 0.15, pesan: 'Lembaga pelacak transaksi keuangan menemukan rekening penampung judi online atas nama warga desa. Jejaknya mengarah ke kantor desa.', kecurigaan: 22, popularitas: 8 },
+  beking_narkoba: { peluang: 0.22, pesan: 'Aparat menggerebek rumah pengedar di desa. Pengedar mengaku "sudah setor ke kades".', kecurigaan: 40, popularitas: 15 },
 };
 
 export interface AsetPribadiDef {
@@ -500,6 +512,31 @@ export function aksiGelap(s: VillageState, jenis: JenisAksiGelap): string {
     s.kepuasan.petani = clamp(s.kepuasan.petani - 4);
     p.kecurigaan = clamp(p.kecurigaan + 5);
     s.integritas = clamp(s.integritas - 1);
+  } else if (jenis === 'rokok_ilegal') {
+    ambil = 18 * JT;
+    s.kepuasan.pedagang = clamp(s.kepuasan.pedagang + 1);
+    p.kecurigaan = clamp(p.kecurigaan + 8);
+    s.integritas = clamp(s.integritas - 3);
+  } else if (jenis === 'internet_ilegal') {
+    ambil = 12 * JT;
+    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda + 2);
+    p.kecurigaan = clamp(p.kecurigaan + 5);
+    s.integritas = clamp(s.integritas - 2);
+  } else if (jenis === 'beking_judol') {
+    ambil = 30 * JT;
+    s.kepuasan.pkk = clamp(s.kepuasan.pkk - 4);
+    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 3);
+    s.indeks.sosial = clamp(s.indeks.sosial - 2);
+    p.kecurigaan = clamp(p.kecurigaan + 14);
+    s.integritas = clamp(s.integritas - 5);
+  } else if (jenis === 'beking_narkoba') {
+    ambil = 50 * JT;
+    s.kepuasan.pkk = clamp(s.kepuasan.pkk - 6);
+    s.kepuasan.tokoh = clamp(s.kepuasan.tokoh - 5);
+    s.kepuasan.pemuda = clamp(s.kepuasan.pemuda - 4);
+    s.indeks.sosial = clamp(s.indeks.sosial - 4);
+    p.kecurigaan = clamp(p.kecurigaan + 18);
+    s.integritas = clamp(s.integritas - 8);
   } else {
     ambil = 20 * JT;
     s.kepuasan.pkk = clamp(s.kepuasan.pkk - 6);
@@ -511,6 +548,13 @@ export function aksiGelap(s: VillageState, jenis: JenisAksiGelap): string {
   p.dompet += ambil;
   p.totalKorupsi += ambil;
   p.jeda[`gelap:${jenis}`] = s.hari + def.jeda;
+  const g = GEREBEK[jenis];
+  if (g && nextRandom(s) < g.peluang) {
+    p.kecurigaan = clamp(p.kecurigaan + g.kecurigaan);
+    s.popularitas = clamp(s.popularitas - g.popularitas);
+    s.integritas = clamp(s.integritas - 3);
+    return `${def.nama}: Rp ${jt(ambil)} jt sempat masuk dompet, tapi ketahuan. ${g.pesan}`;
+  }
   return `${def.nama}: Rp ${jt(ambil)} jt masuk dompet. Bisik-bisik warga mulai terdengar.`;
 }
 

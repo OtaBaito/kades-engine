@@ -149,7 +149,17 @@ export interface PendingCard {
   hariMasuk: number;
   /** Pegawai yang menjadi tokoh kartu (untuk kartu berbasis sifat). */
   stafId?: string;
+  /** Sudah dimusyawarahkan dengan warga: dampak buruk ke kelompok warga diperlunak. */
+  musyawarah?: boolean;
+  /** Sudah minta saran tokoh masyarakat. */
+  tokoh?: boolean;
+  /** Pengali uang masuk hasil tawar-menawar (1,3 berhasil, 0,85 gagal). */
+  nego?: number;
+  /** Catatan rembug yang tampil di surat. */
+  catatan?: string[];
 }
+
+export type CaraRembug = 'musyawarah' | 'tokoh' | 'nego';
 
 export interface ActiveProject {
   proyekId: string;
@@ -453,6 +463,7 @@ export interface VillageState {
 
 export type Action =
   | { type: 'putuskan'; instanceId: string; opsiId: string; alasan?: string }
+  | { type: 'rembug_kartu'; instanceId: string; cara: CaraRembug }
   | { type: 'mulai_proyek'; proyekId: string; kontraktor: Contractor; alasan?: string }
   | { type: 'upgrade_proyek'; proyekId: string; kontraktor: Contractor; alasan?: string }
   | { type: 'tagih'; sumber?: string }
@@ -497,7 +508,7 @@ export type Action =
   | { type: 'beli_aset'; id: string; alasan?: string }
   | { type: 'jual_aset'; id: string; alasan?: string };
 
-export type JenisAksiGelap = 'markup' | 'fee_kontraktor' | 'sewa_bengkok' | 'potong_bantuan';
+export type JenisAksiGelap = 'markup' | 'fee_kontraktor' | 'sewa_bengkok' | 'potong_bantuan' | 'beking_judol' | 'beking_narkoba' | 'internet_ilegal' | 'rokok_ilegal';
 export type TujuanDompet = 'sumbang_kas' | 'buzzer' | 'serangan_fajar' | 'baliho' | 'cawe_cawe' | 'amankan_aparat' | 'sumbang_masjid' | 'buzzer_redam';
 export type PilihanAudit = 'kembalikan' | 'suap' | 'kambing_hitam' | 'pasrah' | 'ngeles';
 export type CaraPromosi = 'jabatan' | 'baliho' | 'blusukan' | 'sekolah';

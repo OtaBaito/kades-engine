@@ -147,6 +147,10 @@ export function bukaSidang(s: VillageState): string {
     fee_kontraktor: ['rekening', 'pengadaan'],
     sewa_bengkok: ['tanah_kas'],
     potong_bantuan: ['bantuan', 'honor_fiktif'],
+    rokok_ilegal: ['tanah_kas', 'rekening'],
+    internet_ilegal: ['tanah_kas', 'rekening'],
+    beking_judol: ['rekening'],
+    beking_narkoba: ['rekening'],
   };
   const dilakukan = Object.keys(s.politik.jeda ?? {})
     .filter((k) => k.startsWith('gelap:'))
