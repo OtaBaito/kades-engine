@@ -390,7 +390,7 @@ export interface VillageState {
   /** Dusun baru yang sudah dibuka (ekspansi desa), berurutan. */
   dusun?: string[];
   /** Proyek besar yang sedang dikerjakan konsorsium (maks satu). */
-  mega?: { id: string; biaya?: number; tahapKe?: number; mulaiHari: number; selesaiHari: number; dibayar: number; tahap: number; jatuhTempo: number; mangkrak: boolean; /** Batas tenggang kalau kas kurang saat jatuh tempo. */ tenggang?: number; /** Sudah diingatkan untuk tagihan ini. */ diingatkan?: number } | null;
+  mega?: { id: string; biaya?: number; tahapKe?: number; mulaiHari: number; selesaiHari: number; dibayar: number; tahap: number; jatuhTempo: number; mangkrak: boolean; /** Batas tenggang kalau kas kurang saat jatuh tempo. */ tenggang?: number; /** Sudah diingatkan untuk tagihan ini. */ diingatkan?: number; /** Porsi manfaat (0..1) kalau sisa tagihan diambil alih kabupaten saat ganti kades. */ porsi?: number } | null;
   megaSelesai?: string[];
   /** Total belanja pembangunan sepanjang permainan (skor liga Pembangunan). */
   nilaiPembangunan?: number;

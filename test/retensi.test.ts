@@ -336,3 +336,26 @@ test('aksi gelap baru: beking narkoba memberi uang besar dan menaikkan kecurigaa
   assert.ok(s.politik.kecurigaan >= curiga + 18);
   assert.throws(() => applyAction(s, { type: 'aksi_gelap', jenis: 'beking_narkoba' }), GameError);
 });
+
+test('ganti kades: utang proyek besar mangkrak tidak diwariskan, manfaat proporsional', async () => {
+  const { lanjutkanDesa } = await import('../src/index.ts');
+  let s = createVillage({ seed: 'mega2', namaDesa: 'A', namaKades: 'B' });
+  s.level = 9;
+  s.kas = 400_000_000;
+  s = applyAction(s, { type: 'mulai_megaproyek', id: 'jalan_tembus' }).state;
+  s.kas = 0;
+  s = advance(s, 25 + 8).state;
+  assert.equal(s.mega?.mangkrak, true);
+  s.kas = 10_000_000;
+  s.status = 'pensiun' as typeof s.status;
+  const n = lanjutkanDesa(s, 'Sulastri');
+  assert.equal(n.mega?.mangkrak, false);
+  assert.equal(n.mega!.dibayar, n.mega!.biaya, 'tidak ada sisa tagihan');
+  assert.ok((n.mega!.porsi ?? 1) < 1);
+  assert.ok(n.jurnal.some((l) => /dirampingkan/.test(l.teks)));
+  const kas = n.kas;
+  const akhir = advance(n, 120).state;
+  assert.equal(akhir.mega, null, 'proyek tetap selesai');
+  assert.ok(akhir.megaSelesai?.includes('jalan_tembus'));
+  assert.ok(kas > 0);
+});

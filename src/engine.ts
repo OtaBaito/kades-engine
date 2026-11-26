@@ -10,7 +10,7 @@ import { bulananPenduduk, jiwaKelompok } from './penduduk.ts';
 import { klaimHarian } from './harian.ts';
 import { bukaSidang, jawabAuditor } from './sidang.ts';
 import { bukaDusun } from './dusun.ts';
-import { harianMega, mulaiMega } from './mega.ts';
+import { harianMega, mulaiMega, serahTerimaMega } from './mega.ts';
 import { angkatKeluarga, lepasSemuaJabatanKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
 import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
@@ -879,6 +879,7 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   state.namaKades = namaKades;
   state.genderKades = gender ?? tebakGender(namaKades);
   if ((state.hari % HARI_PER_PERIODE) === 0 || state.pilkades.at(-1)?.periode === state.periode) state.periode += 1;
+  const pesanMega = serahTerimaMega(state, state.kas - (state.pajak?.titipan ?? 0));
   state.kas = RULES.kasAwal;
   state.integritas = 70;
   state.popularitas = 50;
@@ -906,6 +907,7 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   }
   state.ringkasanPergi = undefined;
   log(state, events, 'politik', `${namaKades} dilantik sebagai kades baru ${state.namaDesa}, meneruskan desa peninggalan ${namaLama}. Kas dan kepercayaan warga dimulai dari awal.`);
+  if (pesanMega) log(state, events, 'info', pesanMega);
   return state;
 }
 

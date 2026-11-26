@@ -166,7 +166,7 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   const total = m.biaya ?? def.biaya;
   const tk = m.tahapKe ?? 0;
   const nama = NAMA_TAHAP(def, tk);
-  const f = skala(tk);
+  const f = skala(tk) * (m.porsi ?? 1);
   // pengingat 5 hari sebelum jatuh tempo kalau kas belum cukup (tutup buku bulanan bisa ikut memotong kas)
   if (m.dibayar < total && !m.mangkrak && m.jatuhTempo - s.hari === 5 && m.diingatkan !== m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
@@ -213,9 +213,9 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
     s.flags = (s.flags ?? []).filter((f) => f !== 'mega_berjalan' && f !== 'mega_jauh');
     for (const [k, v] of Object.entries(def.indeks) as [IndexId, number][]) s.indeks[k] = Math.min(100, s.indeks[k] + Math.round(v * f));
     for (const [g, v] of Object.entries(def.target) as [GroupId, number][]) s.kepuasan[g] = Math.min(100, s.kepuasan[g] + Math.round(v * f));
-    s.pemasukanTambahanBulanan += def.pemasukanBulanan;
+    s.pemasukanTambahanBulanan += Math.round(def.pemasukanBulanan * (m.porsi ?? 1));
     s.popularitas = Math.min(100, s.popularitas + Math.round(def.popularitas * f));
-    catat('baik', `${nama} DIRESMIKAN! Pita digunting bupati, warga memadati lokasi. Kepuasan naik permanen dan ada pemasukan baru ${Math.round(def.pemasukanBulanan / JT)} jt per bulan.`);
+    catat('baik', `${nama} DIRESMIKAN! Pita digunting bupati, warga memadati lokasi. Kepuasan naik permanen dan ada pemasukan baru ${Math.round((def.pemasukanBulanan * (m.porsi ?? 1)) / JT)} jt per bulan.`);
   }
 }
 
@@ -340,3 +340,27 @@ export const KARTU_MEGA: CardDef[] = [
     ],
   },
 ];
+
+/**
+ * Ganti kades: sisa kas kades lama dipakai melunasi tagihan proyek besar yang belum lunas. Kalau masih kurang,
+ * pengerjaan diselesaikan sesuai uang yang sudah masuk (manfaat proporsional), jadi kades baru tidak mewarisi utang.
+ */
+export function serahTerimaMega(s: VillageState, kasLama: number): string | null {
+  const m = s.mega;
+  if (!m) return null;
+  const def = MEGA.find((x) => x.id === m.id);
+  if (!def) return null;
+  const total = m.biaya ?? def.biaya;
+  const sisa = total - m.dibayar;
+  if (sisa <= 0) return null;
+  const nama = NAMA_TAHAP(def, m.tahapKe ?? 0);
+  const pakai = Math.max(0, Math.min(sisa, kasLama));
+  m.dibayar += pakai;
+  m.tenggang = undefined;
+  m.mangkrak = false;
+  m.jatuhTempo = Number.MAX_SAFE_INTEGER;
+  if (m.dibayar >= total) return `Sisa kas kades lama (${Math.round(pakai / JT)} jt) melunasi tagihan ${nama}. Pengerjaan berlanjut tanpa tagihan baru.`;
+  m.porsi = Math.max(0.1, m.dibayar / total) * (m.porsi ?? 1);
+  m.biaya = m.dibayar;
+  return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat), kades baru tidak menanggung utangnya.`;
+}
