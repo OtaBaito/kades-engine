@@ -479,6 +479,8 @@ function ringkasPolitik(state: VillageState) {
   return {
     dompet: p.dompet,
     gosip: gosip(state),
+    /** Angka kecurigaan 0-100 (UI memakai label gosip; angka ini untuk pemain AI). */
+    kecurigaan: Math.round(state.politik.kecurigaan),
     pemimpin: p.pemimpin,
     namaPemimpin: namaPemimpin(state),
     bayangan: p.pemimpin !== 'pemain',

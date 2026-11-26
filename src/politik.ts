@@ -331,7 +331,10 @@ export function bulananPolitik(s: VillageState, catat: Catat): void {
   if (!p.kasus) {
     const peluang = (Math.max(0, p.kecurigaan - 20) / 120 + (s.integritas < 30 ? (30 - s.integritas) / 150 : 0)) * faktorAudit(s) * faktorAuditNasional(s) * faktorAuditPegawai(s);
     if (nextRandom(s) < peluang) {
-      const nilai = Math.round((p.totalKorupsi * 0.6 + 10 * JT) * faktorTemuan(s));
+      // temuan: semua uang gelap yang belum pernah diusut ditambah denda 20%, jadi mengembalikan tidak pernah untung
+      const belum = Math.max(0, p.totalKorupsi - (p.korupsiTerusut ?? 0));
+      const nilai = Math.round((belum * 1.2 + 10 * JT) * faktorTemuan(s));
+      p.korupsiTerusut = p.totalKorupsi;
       p.kasus = { mulai: s.hari, batas: s.hari + POLITIK.batasHariAudit, nilai };
       p.pernahKasus += 1;
       catat('buruk', `Inspektorat datang memeriksa keuangan desa. Ada temuan Rp ${jt(nilai)} jt yang harus dijelaskan dalam ${POLITIK.batasHariAudit} hari.`);
@@ -497,6 +500,8 @@ export function aksiGelap(s: VillageState, jenis: JenisAksiGelap): string {
   if (jenis === 'markup' || jenis === 'fee_kontraktor') {
     if (s.proyekBerjalan.length === 0) throw new GameError('Tidak ada proyek yang sedang berjalan.');
   }
+  // satu kades, satu tangan: jeda bersama antar jenis aksi gelap supaya tidak bisa diborong sehari
+  cekJeda(s, 'gelap:semua', 'Aksi gelap apa pun');
   if (jenis === 'markup') {
     ambil = Math.round(Math.min(60 * JT, Math.max(5 * JT, s.kas * 0.12)));
     if (s.kas < ambil) throw new GameError('Kas desa terlalu tipis untuk digelembungkan.');
@@ -548,12 +553,31 @@ export function aksiGelap(s: VillageState, jenis: JenisAksiGelap): string {
   p.dompet += ambil;
   p.totalKorupsi += ambil;
   p.jeda[`gelap:${jenis}`] = s.hari + def.jeda;
+  p.jeda['gelap:semua'] = s.hari + 10;
+  // dampak ke warga yang datang belakangan
+  if (jenis === 'beking_judol') {
+    s.popularitas = clamp(s.popularitas - 2);
+    s.terjadwal.push({
+      hari: s.hari + 15 + Math.floor(nextRandom(s) * 20),
+      peluang: 0.7,
+      pesan: 'Beberapa keluarga terjerat utang judi online. Ibu-ibu PKK mengadu ke balai desa sambil menangis.',
+      effect: { kepuasan: { pkk: -6, pemuda: -3 }, indeks: { sosial: -2 }, popularitas: -4, kecurigaan: 4 },
+    });
+  } else if (jenis === 'beking_narkoba') {
+    s.popularitas = clamp(s.popularitas - 3);
+    s.terjadwal.push({
+      hari: s.hari + 20 + Math.floor(nextRandom(s) * 20),
+      peluang: 0.75,
+      pesan: 'Dua pemuda desa dilarikan ke puskesmas karena overdosis. Warga mulai bertanya siapa yang melindungi pengedarnya.',
+      effect: { kepuasan: { pemuda: -6, pkk: -6, tokoh: -5 }, indeks: { sosial: -3 }, popularitas: -6, kecurigaan: 8 },
+    });
+  }
   const g = GEREBEK[jenis];
   if (g && nextRandom(s) < g.peluang) {
     p.kecurigaan = clamp(p.kecurigaan + g.kecurigaan);
     s.popularitas = clamp(s.popularitas - g.popularitas);
     s.integritas = clamp(s.integritas - 3);
-    return `${def.nama}: Rp ${jt(ambil)} jt sempat masuk dompet, tapi ketahuan. ${g.pesan}`;
+    return `${def.nama}: Rp ${jt(ambil)} jt sempat masuk dompet, tapi ketahuan. ${g.pesan} (Gosip naik tajam, popularitas -${g.popularitas}, integritas -3.)`;
   }
   return `${def.nama}: Rp ${jt(ambil)} jt masuk dompet. Bisik-bisik warga mulai terdengar.`;
 }

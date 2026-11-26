@@ -357,6 +357,8 @@ export interface KeadaanPolitik {
   /** Aset pribadi yang dibeli dari dompet (rumah, mobil, usaha). */
   aset: { id: string; hariBeli: number; nilai: number }[];
   totalKorupsi: number;
+  /** Bagian totalKorupsi yang sudah pernah diusut audit (tidak dihitung dua kali). */
+  korupsiTerusut?: number;
   pernahKasus: number;
   tahunDinasti: number;
 }

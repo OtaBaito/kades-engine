@@ -457,7 +457,8 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
   if (state.kotakMasuk.length >= RULES.kotakMasukMaks) addAllKepuasan(state, -0.1);
 
   state.popularitas = clamp(state.popularitas + (50 - state.popularitas) * 0.01);
-  if (state.integritas < 60) state.integritas = clamp(state.integritas + 0.06);
+  // nama baik pulih pelan, tapi tidak selama warga masih bergunjing soal kades
+  if (state.integritas < 60 && state.politik.kecurigaan < 40) state.integritas = clamp(state.integritas + 0.06);
 
   // 3b. babak cerita bersambung yang sudah jatuh tempo masuk kotak masuk (melewati batas acak)
   for (const a of [...(state.antreanKartu ?? [])]) {
