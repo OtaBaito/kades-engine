@@ -99,6 +99,11 @@ export function biayaMega(def: MegaDef, tingkat: number): number {
   return Math.round((def.biaya * Math.pow(NAIK_BIAYA, tingkat)) / JT) * JT;
 }
 const skala = (tingkat: number) => (tingkat === 0 ? 1 : 0.5);
+/** Progres pengerjaan 0..1: dihitung dari sisa hari, jadi ikut membeku selama mangkrak. */
+function progresMega(s: VillageState, m: NonNullable<VillageState['mega']>, def: MegaDef): number {
+  return Math.max(0, Math.min(1, 1 - (m.selesaiHari - s.hari) / Math.max(1, def.durasi)));
+}
+
 const NAMA_TAHAP = (def: MegaDef, tingkat: number) => (tingkat === 0 ? def.nama : `${def.nama} tahap ${tingkat + 1}`);
 
 export function bonusMega(s: VillageState, g: GroupId): number {
@@ -136,7 +141,17 @@ export function mulaiMega(s: VillageState, id: string): string {
   };
   s.flags = [...new Set([...(s.flags ?? []), 'mega_berjalan'])];
   s.popularitas = Math.min(100, s.popularitas + 2);
-  return `Peletakan batu pertama ${nama}. Uang muka ${Math.round(muka / JT)} jt dibayar, dua tahap berikutnya menyusul. Siapkan kas.`;
+  // perkiraan kasar: kas bebas sekarang + arus bersih rata-rata 3 bulan terakhir sampai tagihan tahap 2 jatuh tempo
+  const tagihan = Math.round(biaya * TAHAP);
+  const hariTempo = Math.round(def.durasi / 3);
+  const lap = (s.laporan ?? []).slice(-3);
+  const bersihHarian = lap.length ? lap.reduce((t, l) => t + (l.pemasukan ?? 0) - (l.pengeluaran ?? 0), 0) / lap.length / 30 : 0;
+  const perkiraan = s.kas - (s.pajak?.titipan ?? 0) + bersihHarian * hariTempo;
+  const peringatan =
+    perkiraan < tagihan
+      ? ` PERHATIAN: tagihan tahap 2 (${Math.round(tagihan / JT)} jt) jatuh tempo ${hariTempo} hari lagi, sedangkan perkiraan kas bebas saat itu hanya sekitar ${Math.round(Math.max(0, perkiraan) / JT)} jt. Tahan belanja lain atau siapkan pinjaman supaya tidak mangkrak.`
+      : ` Tagihan tahap 2 (${Math.round(tagihan / JT)} jt) jatuh tempo ${hariTempo} hari lagi.`;
+  return `Peletakan batu pertama ${nama}. Uang muka ${Math.round(muka / JT)} jt dibayar, dua tahap berikutnya menyusul.${peringatan}`;
 }
 
 /** Dipanggil tiap hari: bayar tahap, tangani mangkrak, resmikan. */
@@ -184,8 +199,7 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
     }
   }
   // kartu "percepat" hanya masuk akal di paruh pertama pengerjaan, selagi sisa waktunya masih panjang
-  const durasi = Math.max(1, m.selesaiHari - m.mulaiHari);
-  const jauh = !m.mangkrak && (s.hari - m.mulaiHari) / durasi < 0.5 && m.selesaiHari - s.hari > 25;
+  const jauh = !m.mangkrak && progresMega(s, m, def) < 0.5 && m.selesaiHari - s.hari > 25;
   s.flags = jauh ? [...new Set([...(s.flags ?? []), 'mega_jauh'])] : (s.flags ?? []).filter((f) => f !== 'mega_jauh');
   if (m.mangkrak) {
     // proyek berhenti: tanggal selesai ikut mundur, warga makin kesal tiap bulan
@@ -239,7 +253,7 @@ export function viewMega(s: VillageState) {
           return {
             id: m.id,
             nama: NAMA_TAHAP(def, m.tahapKe ?? 0),
-            progres: Math.max(0, Math.min(100, Math.round(((s.hari - m.mulaiHari) / Math.max(1, m.selesaiHari - m.mulaiHari)) * 100))),
+            progres: Math.round(progresMega(s, m, def) * 100),
             sisaHari: Math.max(0, m.selesaiHari - s.hari),
             dibayar: m.dibayar,
             total,
