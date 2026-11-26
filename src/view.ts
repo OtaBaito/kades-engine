@@ -6,7 +6,7 @@ import { maksProyek, viewRekanan } from './rekanan.ts';
 import { viewSidang } from './sidang.ts';
 import { labelPeran } from './politik.ts';
 import { viewDusun } from './dusun.ts';
-import { viewMega } from './mega.ts';
+import { peringatanTagihanMega, viewMega } from './mega.ts';
 import { viewJabatan } from './jabatan.ts';
 import { batasSilpa, viewInvestasi } from './investasi.ts';
 import { CARD_BY_ID } from './content/cards.ts';
@@ -184,7 +184,10 @@ export function buildView(state: VillageState) {
         /** Pegawai yang jadi tokoh kartu (kalau ada): dipakai UI sebagai pembawa kartu. */
         tokohStaf: staf ? { nama: staf.nama, peran: PEGAWAI.find((p) => p.id === staf.peran)?.peran ?? staf.peran, sifat: staf.sifat.map((x) => SIFAT[x]?.nama ?? x) } : null,
         /** Catatan hasil musyawarah, saran tokoh, dan tawar-menawar. */
-        catatan: k.catatan ?? [],
+        catatan: [
+          ...(k.catatan ?? []),
+          ...[peringatanTagihanMega(state, Math.max(0, ...opsiTersedia(state, card).map((o) => -(efekKartuPending(state, card, o, k).kas ?? 0))))].filter((x): x is string => Boolean(x) && card.id.startsWith('mega_')),
+        ],
         rembug: {
           musyawarah: card.kategori !== 'kampanye' && !k.musyawarah,
           tokoh: !k.tokoh,

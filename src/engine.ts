@@ -867,6 +867,9 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
  * Lanjutkan desa yang sudah tamat (pensiun atau kalah) dengan kades baru. Bangunan, warga, pegawai, BUMDes,
  * PT, dan perdes tetap; kas, reputasi, keluarga, dan relasi pribadi dengan pejabat mulai dari awal.
  */
+/** Batas sisa kas kades lama yang ikut ke kades baru. */
+const SILPA_GANTI_KADES = 150 * JT;
+
 export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: Gender): VillageState {
   if (input.status === 'menjabat') throw new GameError('Desa ini masih punya kades yang menjabat.');
   if (namaKades.trim().toLowerCase() === input.namaKades.trim().toLowerCase()) throw new GameError('Kades baru harus orang lain. Pakai nama yang berbeda dari kades sebelumnya.');
@@ -879,8 +882,12 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   state.namaKades = namaKades;
   state.genderKades = gender ?? tebakGender(namaKades);
   if ((state.hari % HARI_PER_PERIODE) === 0 || state.pilkades.at(-1)?.periode === state.periode) state.periode += 1;
-  const pesanMega = serahTerimaMega(state, state.kas - (state.pajak?.titipan ?? 0));
-  state.kas = RULES.kasAwal;
+  const kasBebasLama = Math.max(0, state.kas - (state.pajak?.titipan ?? 0));
+  const pesanMega = serahTerimaMega(state, kasBebasLama);
+  // sisa kas bebas (setelah melunasi proyek besar) ikut sebagai SiLPA, dibatasi supaya kades baru tetap mulai dari bawah
+  const terpakaiMega = pesanMega ? Math.min(kasBebasLama, (state.mega?.dibayar ?? 0) - (input.mega?.dibayar ?? 0)) : 0;
+  const silpa = Math.min(SILPA_GANTI_KADES, Math.max(0, kasBebasLama - terpakaiMega));
+  state.kas = RULES.kasAwal + silpa;
   state.integritas = 70;
   state.popularitas = 50;
   state.politik = buatPolitik(state);
@@ -906,8 +913,9 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
     r.kandidatWakil = [];
   }
   state.ringkasanPergi = undefined;
-  log(state, events, 'politik', `${namaKades} dilantik sebagai kades baru ${state.namaDesa}, meneruskan desa peninggalan ${namaLama}. Kas dan kepercayaan warga dimulai dari awal.`);
+  log(state, events, 'politik', `${namaKades} dilantik sebagai kades baru ${state.namaDesa}, meneruskan desa peninggalan ${namaLama}. Kepercayaan warga dimulai dari awal.`);
   if (pesanMega) log(state, events, 'info', pesanMega);
+  if (silpa > 0) log(state, events, 'info', `SiLPA dari kades lama ${formatRupiah(silpa)} ikut masuk kas awal${kasBebasLama - terpakaiMega > silpa ? ' (sisanya dikembalikan ke kas daerah)' : ''}.`);
   return state;
 }
 

@@ -2480,11 +2480,12 @@ export const CARDS: CardDef[] = [
     "opsi": [
       {
         "id": "lembur",
-        "label": "Setuju lembur, kas desa tanggung",
+        "label": "Setuju lembur, selesai 15 hari lebih cepat, kas desa tanggung",
         "effect": {
           "kas": -60000000,
           "setFlag": [
-            "restu_bupati"
+            "restu_bupati",
+            "mega_lembur"
           ],
           "popularitas": 2
         }

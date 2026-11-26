@@ -99,6 +99,9 @@ export function biayaMega(def: MegaDef, tingkat: number): number {
   return Math.round((def.biaya * Math.pow(NAIK_BIAYA, tingkat)) / JT) * JT;
 }
 const skala = (tingkat: number) => (tingkat === 0 ? 1 : 0.5);
+/** Hari yang dipangkas kalau kades setuju lembur di kartu "Bupati minta dipercepat". */
+export const PERCEPAT_LEMBUR = 15;
+
 /** Progres pengerjaan 0..1: dihitung dari sisa hari, jadi ikut membeku selama mangkrak. */
 function progresMega(s: VillageState, m: NonNullable<VillageState['mega']>, def: MegaDef): number {
   return Math.max(0, Math.min(1, 1 - (m.selesaiHari - s.hari) / Math.max(1, def.durasi)));
@@ -167,6 +170,12 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   const tk = m.tahapKe ?? 0;
   const nama = NAMA_TAHAP(def, tk);
   const f = skala(tk) * (m.porsi ?? 1);
+  if (s.flags?.includes('mega_lembur')) {
+    s.flags = s.flags.filter((x) => x !== 'mega_lembur');
+    const lama = m.selesaiHari;
+    m.selesaiHari = Math.max(s.hari + 5, m.selesaiHari - PERCEPAT_LEMBUR);
+    if (m.selesaiHari < lama) catat('baik', `Pekerja ${nama} lembur: target selesai maju ${lama - m.selesaiHari} hari.`);
+  }
   // pengingat 5 hari sebelum jatuh tempo kalau kas belum cukup (tutup buku bulanan bisa ikut memotong kas)
   if (m.dibayar < total && !m.mangkrak && m.jatuhTempo - s.hari === 5 && m.diingatkan !== m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
@@ -334,7 +343,7 @@ export const KARTU_MEGA: CardDef[] = [
     jedaHari: 150,
     syarat: { flag: 'mega_jauh' },
     opsi: [
-      { id: 'lembur', label: 'Setuju lembur, kas desa tanggung', effect: { kas: -60 * JT, setFlag: ['restu_bupati'], popularitas: 2 } },
+      { id: 'lembur', label: `Setuju lembur, selesai ${PERCEPAT_LEMBUR} hari lebih cepat, kas desa tanggung`, effect: { kas: -60 * JT, setFlag: ['restu_bupati', 'mega_lembur'], popularitas: 2 } },
       { id: 'tolak', label: 'Tetap sesuai jadwal, kualitas nomor satu', effect: { integritas: 2, setFlag: ['dimusuhi_bupati'] } },
       { id: 'janji', label: 'Janjikan, tapi tidak dikerjakan', effect: { popularitas: -2, kepuasan: { tokoh: -2 } } },
     ],
@@ -363,4 +372,20 @@ export function serahTerimaMega(s: VillageState, kasLama: number): string | null
   m.porsi = Math.max(0.1, m.dibayar / total) * (m.porsi ?? 1);
   m.biaya = m.dibayar;
   return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat), kades baru tidak menanggung utangnya.`;
+}
+
+/** Peringatan di kartu yang memakan kas saat tagihan tahap proyek besar sudah dekat. */
+export function peringatanTagihanMega(s: VillageState, biaya: number): string | null {
+  const m = s.mega;
+  if (!m || biaya <= 0) return null;
+  const def = MEGA.find((x) => x.id === m.id);
+  if (!def) return null;
+  const total = m.biaya ?? def.biaya;
+  if (m.dibayar >= total) return null;
+  const tagihan = Math.min(total - m.dibayar, Math.round(total * TAHAP));
+  const hari = Math.max(0, m.jatuhTempo - s.hari);
+  if (hari > 30) return null;
+  const bebas = s.kas - (s.pajak?.titipan ?? 0);
+  if (bebas - biaya >= tagihan) return null;
+  return `Awas: tagihan ${NAMA_TAHAP(def, m.tahapKe ?? 0)} ${Math.round(tagihan / JT)} jt jatuh tempo ${hari} hari lagi. Kas bebas sekarang ${Math.round(bebas / JT)} jt; kalau dipakai ${Math.round(biaya / JT)} jt untuk ini, proyek bisa mangkrak.`;
 }

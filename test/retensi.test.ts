@@ -359,3 +359,22 @@ test('ganti kades: utang proyek besar mangkrak tidak diwariskan, manfaat propors
   assert.ok(akhir.megaSelesai?.includes('jalan_tembus'));
   assert.ok(kas > 0);
 });
+
+test('kartu bupati percepat: lembur memajukan selesai, ganti kades membawa SiLPA terbatas', async () => {
+  const { lanjutkanDesa } = await import('../src/index.ts');
+  let s = createVillage({ seed: 'mega3', namaDesa: 'A', namaKades: 'B' });
+  s.level = 9;
+  s.kas = 2_000_000_000;
+  s = applyAction(s, { type: 'mulai_megaproyek', id: 'jalan_tembus' }).state;
+  const target = s.mega!.selesaiHari;
+  s.flags = [...s.flags, 'mega_lembur'];
+  s = advance(s, 1).state;
+  assert.equal(s.mega!.selesaiHari, target - 15);
+  assert.ok(!s.flags.includes('mega_lembur'));
+  s.mega = null;
+  s.kas = 900_000_000;
+  s.status = 'pensiun' as typeof s.status;
+  const n = lanjutkanDesa(s, 'Sulastri');
+  assert.equal(n.kas, 60_000_000 + 150_000_000);
+  assert.ok(n.jurnal.some((l) => /SiLPA dari kades lama/.test(l.teks)));
+});
