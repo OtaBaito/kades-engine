@@ -454,12 +454,13 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
   const tersedia = new Set(state.proyekSelesai.flatMap((b) => PROJECT_BY_ID.get(b.proyekId)?.menyediakan ?? []));
   for (const g of GROUPS) {
     const terpenuhi = g.kebutuhan.filter((k) => tersedia.has(k)).length;
-    // warga makin menuntut tiap periode
+    // warga makin menuntut tiap periode, tapi tuntutan berhenti naik setelah tiga periode: desa tua yang
+    // kebutuhannya terpenuhi tetap bisa puas (dulu tanpa batas, periode 14 memotong target 52 poin)
     const target =
       30 +
       42 * (terpenuhi / g.kebutuhan.length) +
       (state.popularitas - 50) * 0.08 -
-      4 * (state.periode - 1) +
+      4 * Math.min(3, state.periode - 1) +
       bonusTargetKepuasan(state, g.id);
     state.kepuasan[g.id] = clamp(state.kepuasan[g.id] + (target - state.kepuasan[g.id]) * 0.03);
   }

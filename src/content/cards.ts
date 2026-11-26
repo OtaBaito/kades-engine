@@ -1646,7 +1646,7 @@ export const CARDS: CardDef[] = [
   {
     "id": "alat_peraga",
     "judul": "Tim Sukses Minta Dana Alat Peraga",
-    "teks": "Masa kampanye baru dibuka. Tim sukses datang membawa contoh baliho, kaus, dan stiker. Katanya, calon lain sudah memasang baliho di tiap tikungan.",
+    "teks": "Masa kampanye sedang berjalan. Tim sukses datang membawa contoh baliho, kaus, dan stiker. Katanya, calon lain sudah memasang baliho di tiap tikungan.",
     "kategori": "kampanye",
     "bobot": 6,
     "sekali": false,
