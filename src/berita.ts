@@ -96,6 +96,8 @@ interface KabarDef {
   efek?: { kepuasan?: Partial<Record<GroupId, number>>; indeks?: Partial<Record<IndexId, number>>; popularitas?: number; kecurigaan?: number };
   syarat?: (s: VillageState) => boolean;
   jeda: number;
+  /** Judul dan isi saat berita ini muncul lagi (mis. acara "pertama" yang digelar ulang). */
+  ulang?: { judul: string; isi: string };
 }
 
 const KABAR: KabarDef[] = [
@@ -198,6 +200,10 @@ const KABAR: KabarDef[] = [
     dampak: 'Pemuda +2',
     efek: { kepuasan: { pemuda: 2 } },
     jeda: 240,
+    ulang: {
+      judul: 'Festival Jejepangan Kembali Digelar di Kota Kabupaten',
+      isi: 'Tahun ini lebih ramai: lomba cosplay, karaoke anisong, dan bazar manga. Anak muda desa kembali berangkat beramai-ramai.',
+    },
   },
   {
     id: 'ohayou_vtuber',
@@ -420,9 +426,11 @@ export function harianBerita(s: VillageState, catat: Catat): void {
     const siap = KABAR.filter((k) => s.hari >= (n.jeda[k.id] ?? 0) && (!k.syarat || k.syarat(s)));
     if (siap.length) {
       const k = siap[Math.floor(nextRandom(s) * siap.length)];
+      const pernah = n.jeda[k.id] !== undefined;
       n.jeda[k.id] = s.hari + k.jeda;
       terapkanKabar(s, k);
-      tambahBerita(s, { judul: k.judul, isi: k.isi, sumber: k.sumber, kategori: k.kategori, dampak: k.dampak });
+      const teks = pernah && k.ulang ? k.ulang : k;
+      tambahBerita(s, { judul: teks.judul, isi: teks.isi, sumber: k.sumber, kategori: k.kategori, dampak: k.dampak });
     }
   }
 }
