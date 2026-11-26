@@ -396,7 +396,7 @@ test('ganti kades: titipan pajak disetor dari kas lama, kekurangannya tetap jadi
   assert.equal(m.kas, 60_000_000 + 150_000_000);
 });
 
-test('ekonomi akhir: biaya proyek besar ikut kemampuan desa, BUMDes jenuh di atas 20 level', async () => {
+test('ekonomi akhir: biaya proyek besar ikut kemampuan desa, BUMDes jenuh tapi naik level selalu menambah', async () => {
   const { MEGA } = await import('../src/index.ts');
   const { biayaMega } = await import('../src/mega.ts');
   const { kejenuhanBumdes } = await import('../src/fitur.ts');
@@ -405,9 +405,20 @@ test('ekonomi akhir: biaya proyek besar ikut kemampuan desa, BUMDes jenuh di ata
   assert.equal(biayaMega(def, 0, s), def.biaya, 'desa biasa: harga dasar');
   s.laporan = [1, 2, 3].map((b) => ({ bulan: b, pemasukan: 700_000_000 }) as (typeof s.laporan)[number]);
   assert.equal(biayaMega(def, 0, s), def.biaya * 2);
-  s.bumdes = { a: 11 };
-  const k11 = kejenuhanBumdes(s);
-  assert.ok(Math.abs(k11 - 1 / 1.8) < 1e-9, 'jumlah level kecil tidak berubah');
-  s.bumdes = { a: 38 };
-  assert.ok(kejenuhanBumdes(s) < 1 / 4.5);
+  s.bumdes = { warung_desa: 1 };
+  assert.equal(kejenuhanBumdes(s), 1, 'satu usaha belum jenuh');
+  // naik level selalu menambah pendapatan total, walau makin pelan
+  const { BUMDES } = await import('../src/content/fitur.ts');
+  const { totalPendapatanBumdes } = await import('../src/fitur.ts');
+  s.bumdes = {};
+  let sebelum = 0;
+  for (let putaran = 0; putaran < 8; putaran++) {
+    for (const d of BUMDES) {
+      if ((s.bumdes[d.id] ?? 0) >= d.maksLevel) continue;
+      s.bumdes = { ...s.bumdes, [d.id]: (s.bumdes[d.id] ?? 0) + 1 };
+      const kini = totalPendapatanBumdes(s);
+      assert.ok(kini > sebelum, `naik ${d.id} ke ${s.bumdes[d.id]}: ${kini} <= ${sebelum}`);
+      sebelum = kini;
+    }
+  }
 });

@@ -365,7 +365,7 @@ export function buildView(state: VillageState) {
         // angka nyata: sudah termasuk bonus manajer dan kejenuhan pasar (level tambahan ikut menjenuhkan pasar)
         pendapatanHarian: Math.round(pendapatanBumdes(b, level) * (1 + bonusBumdes(state)) * kejenuhanBumdes(state)),
         pendapatanBerikut: Math.round(
-          pendapatanBumdes(b, Math.min(b.maksLevel, level + 1)) * (1 + bonusBumdes(state)) * kejenuhanBumdes(state, level < b.maksLevel ? 1 : 0),
+          pendapatanBumdes(b, Math.min(b.maksLevel, level + 1)) * (1 + bonusBumdes(state)) * kejenuhanBumdes(state, level < b.maksLevel ? 1 : 0, b.id),
         ),
         biayaBerikut: level >= b.maksLevel ? null : biayaBumdes(b, level, state),
         syaratProyek: b.syaratProyek ?? null,

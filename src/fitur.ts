@@ -437,21 +437,46 @@ export function biayaBumdes(def: (typeof BUMDES)[number], level: number, s?: Vil
   return Math.round(def.biaya * Math.pow(1.5, level));
 }
 
+/** Pendapatan BUMDes per hari di atas batas ini hanya dihitung sebagian (pasar desa sudah jenuh). */
+const BATAS_JENUH_HARIAN = 6 * JT;
+const PORSI_DI_ATAS_BATAS = 0.3;
+
 /**
- * Kejenuhan pasar desa: makin banyak usaha (dan levelnya), makin sedikit pembeli per usaha.
- * 1 = tidak jenuh. Total 3 level usaha masih penuh, lalu turun (pendapatan total mendekati batas, tidak tumbuh tanpa ujung).
+ * Pendapatan per hari setelah kejenuhan pasar: tiap level usaha dihitung sebagai satu "lapak". Lapak urut dari
+ * yang paling laku; 3 lapak pertama penuh, lapak ke-n berikutnya berbobot 1/(1 + 0.5(n-3)). Lalu di atas
+ * Rp 6 jt per hari hanya 30% yang dihitung. Menambah level selalu menambah total (bobot turun, tidak pernah
+ * mengurangi), hanya makin pelan.
  */
-export function kejenuhanBumdes(s: VillageState, tambahLevel = 0): number {
-  const totalLevel = Object.values(s.bumdes ?? {}).reduce((t, l) => t + Math.max(0, l), 0) + tambahLevel;
-  // di atas 20 level total, pasar desa benar-benar jenuh: tambahan usaha nyaris tidak menambah pendapatan
-  return 1 / (1 + 0.1 * Math.max(0, totalLevel - 3) + 0.005 * Math.max(0, totalLevel - 20) ** 2);
+function pendapatanJenuh(s: VillageState, naikId?: string): { kotor: number; bersih: number } {
+  const lapak: number[] = [];
+  for (const def of BUMDES) {
+    const lv = Math.max(0, s.bumdes?.[def.id] ?? 0) + (def.id === naikId ? 1 : 0);
+    for (let i = 1; i <= lv; i++) lapak.push(pendapatanBumdes(def, i) - pendapatanBumdes(def, i - 1));
+  }
+  lapak.sort((x, y) => y - x);
+  const bonus = 1 + bonusBumdes(s);
+  let kotor = 0;
+  let tertimbang = 0;
+  lapak.forEach((v, i) => {
+    kotor += v * bonus;
+    tertimbang += (v * bonus) / (1 + 0.5 * Math.max(0, i + 1 - 3));
+  });
+  const bersih = tertimbang <= BATAS_JENUH_HARIAN ? tertimbang : BATAS_JENUH_HARIAN + (tertimbang - BATAS_JENUH_HARIAN) * PORSI_DI_ATAS_BATAS;
+  return { kotor, bersih };
+}
+
+/**
+ * Kejenuhan pasar desa sebagai pengali (1 = tidak jenuh): pendapatan setelah jenuh dibagi pendapatan tanpa jenuh.
+ * Dengan `naikId`: kejenuhan kalau usaha itu naik satu level.
+ */
+export function kejenuhanBumdes(s: VillageState, tambahLevel = 0, naikId?: string): number {
+  const p = pendapatanJenuh(s, tambahLevel > 0 ? naikId : undefined);
+  return p.kotor > 0 ? p.bersih / p.kotor : 1;
 }
 
 /** Pendapatan BUMDes per hari setelah bonus manajer dan kejenuhan pasar. */
 export function totalPendapatanBumdes(s: VillageState): number {
-  let total = 0;
-  for (const def of BUMDES) total += pendapatanBumdes(def, s.bumdes?.[def.id] ?? 0);
-  return Math.round(total * (1 + bonusBumdes(s)) * kejenuhanBumdes(s));
+  return Math.round(pendapatanJenuh(s).bersih);
 }
 
 /** Pendapatan pasif harian: langsung masuk kas, tetap jalan saat game ditutup. */
