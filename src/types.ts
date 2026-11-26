@@ -153,6 +153,8 @@ export interface PendingCard {
   musyawarah?: boolean;
   /** Sudah minta saran tokoh masyarakat. */
   tokoh?: boolean;
+  /** Opsi yang paling ditolak warga saat musyawarah: dampaknya tidak diperlunak. */
+  ditolakWarga?: string;
   /** Pengali uang masuk hasil tawar-menawar (1,3 berhasil, 0,85 gagal). */
   nego?: number;
   /** Catatan rembug yang tampil di surat. */

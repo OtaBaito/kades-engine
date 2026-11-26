@@ -360,6 +360,7 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
   // (penerus atau jagoannya yang memimpin) boleh mencalonkan diri lagi
   if (p.pemimpin !== 'pemain' && p.periodePemain > 0) {
     p.periodePemain = 0;
+    p.jeda['kembali:menjabat'] = 1;
     catat('politik', `Setelah satu periode tidak menjabat, ${s.namaKades} boleh mencalonkan diri lagi.`);
   }
   let calon: PilihanCalon = 'tidak';
@@ -484,7 +485,14 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
     p.pemimpin = 'pemain';
     p.namaJagoan = undefined;
     p.periodePemain += 1;
-    catat('politik', `Menang pilkades dengan ${koma(persen)}% suara. Periode ke-${p.periodePemain} dimulai.`);
+    const kembali = p.periodePemain === 1 && p.jeda['kembali:menjabat'] === 1;
+    delete p.jeda['kembali:menjabat'];
+    catat(
+      'politik',
+      kembali
+        ? `Menang pilkades dengan ${koma(persen)}% suara dan kembali menjabat. Batas dua periode dihitung ulang: ini periode pertama setelah jeda.`
+        : `Menang pilkades dengan ${koma(persen)}% suara. Periode ke-${p.periodePemain} dimulai.`,
+    );
   }
   return { menang, persen, perKelompok };
 }

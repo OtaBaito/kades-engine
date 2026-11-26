@@ -337,7 +337,16 @@ export function programWajibBelum(state: VillageState): string[] {
 
 /** Tenggat program wajib (awal bulan ke-4): yang belum dibangun dibangun paksa; kas kurang ditutup utang bank. */
 function paksaProgramWajib(state: VillageState, events: LogEntry[]): void {
-  if (state.hari < RULES.hariPerBulan * 3) return;
+  const tenggat = RULES.hariPerBulan * 3;
+  const sisa = tenggat - state.hari;
+  if (sisa === 30 || sisa === 7) {
+    const belum = PROJECTS.filter((p) => p.wajib && !isBuilt(state, p.id) && !isRunning(state, p.id));
+    if (belum.length) {
+      const total = belum.reduce((t, p) => t + Math.round(p.biaya * RULES.kontraktor.bagus.pengaliBiaya), 0);
+      log(state, events, 'buruk', `Pengingat program pusat: ${belum.map((p) => p.nama).join(' dan ')} harus mulai dibangun dalam ${sisa} hari. Kalau lewat, dibangun paksa dengan spek mahal (${formatRupiah(total)}) dan kekurangan kas ditutup utang bank.`);
+    }
+  }
+  if (state.hari < tenggat) return;
   for (const def of PROJECTS.filter((p) => p.wajib && !isBuilt(state, p.id) && !isRunning(state, p.id))) {
     const biaya = Math.round(def.biaya * RULES.kontraktor.bagus.pengaliBiaya);
     let utang = 0;
@@ -676,11 +685,11 @@ export function efekKartuPending(state: VillageState, card: CardDef, opsi: CardO
     const f = pending.nego;
     e = {
       ...e,
-      kas: e.kas && e.kas > 0 ? Math.round((e.kas * f) / 100_000) * 100_000 : e.kas,
-      dompet: e.dompet && e.dompet > 0 && card.kategori !== 'kampanye' ? Math.round((e.dompet * f) / 100_000) * 100_000 : e.dompet,
+      // hanya uang dari penawar yang masuk kas; uang pribadi kades tidak ikut ditawar
+      kas: e.kas && e.kas > 0 && !(e.dompet && e.dompet > 0) ? Math.round((e.kas * f) / 100_000) * 100_000 : e.kas,
     };
   }
-  if (pending.musyawarah) {
+  if (pending.musyawarah && pending.ditolakWarga !== opsi.id) {
     // keputusan hasil rembug: warga yang kalah suara tetap merasa didengar
     const lunak = (v: number) => (v < 0 ? Math.round(v * 0.5) : v);
     const kepuasan = e.kepuasan ? Object.fromEntries(Object.entries(e.kepuasan).map(([g, v]) => [g, lunak(v as number)]).filter(([, v]) => v !== 0)) : undefined;
@@ -696,10 +705,16 @@ export function efekKartuPending(state: VillageState, card: CardDef, opsi: CardO
   return e;
 }
 
+/** Kartu tawaran dari pihak luar desa (yang bisa ditawar), dan kartu suap (yang tidak). */
+const PIHAK_LUAR = /CSR|hibah|investor|sponsor|donasi|yayasan|perusahaan|pabrik|bank|swasta|\bPT\b|konsorsium|developer|pengembang|tawaran|menawarkan/i;
+const SUAP = /amplop|suap|pelicin|setoran|uang terima kasih|uang lelah/i;
+
 /** Apakah salah satu opsi kartu ini membawa uang masuk yang bisa ditawar. */
 export function bisaDitawar(state: VillageState, card: CardDef): boolean {
   // hanya tawaran dari pihak luar (CSR, hibah, investor), bukan kasus seperti uang yang dikembalikan
   if (card.kategori !== 'peluang') return false;
+  const teks = `${card.judul} ${card.teks}`;
+  if (!PIHAK_LUAR.test(teks) || SUAP.test(teks)) return false;
   return opsiTersedia(state, card).some((o) => (efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)).kas ?? 0) > 0);
 }
 
@@ -728,8 +743,12 @@ function rembugKartu(state: VillageState, instanceId: string, cara: CaraRembug, 
     state.politik.jeda['rembug:musyawarah'] = state.hari + 5;
     pending.musyawarah = true;
     const urut = [...opsi].sort((a, b) => totalKepuasan(efekKartuBerskala(b.effect, 1)) - totalKepuasan(efekKartuBerskala(a.effect, 1)));
-    const suara = `Rembug warga di balai: kebanyakan condong ke "${label(urut[0])}"` + (urut.length > 1 ? `, paling banyak yang keberatan dengan "${label(urut[urut.length - 1])}".` : '.');
-    pending.catatan.push(`${suara} Apa pun keputusannya, warga merasa dilibatkan: dampak buruk ke warga diperlunak separuh.`);
+    const ditolak = urut.length > 1 ? urut[urut.length - 1] : undefined;
+    pending.ditolakWarga = ditolak?.id;
+    const suara = `Rembug warga di balai: kebanyakan condong ke "${label(urut[0])}"` + (ditolak ? `, paling banyak yang keberatan dengan "${label(ditolak)}".` : '.');
+    pending.catatan.push(
+      `${suara} Warga merasa dilibatkan: dampak buruk ke warga diperlunak separuh` + (ditolak ? `, kecuali kalau kades tetap memilih "${label(ditolak)}" yang ditolak di balai.` : '.'),
+    );
     tambahStat(state, 'rapatBpd');
     return `${judul}: dibawa ke musyawarah warga. ${suara}`;
   }
