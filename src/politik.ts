@@ -695,15 +695,21 @@ export function selesaikanAudit(s: VillageState, pilihan: PilihanAudit, catat: C
     return `Rp ${jt(bayar)} jt dikembalikan ke kas desa. Kasus ditutup dengan catatan.`;
   }
   if (pilihan === 'suap') {
-    const biaya = Math.round(15 * JT + kasus.nilai * 0.3);
+    // suap tidak boleh lebih murah daripada mengembalikan sebagian besar uangnya
+    const biaya = Math.round(15 * JT + kasus.nilai * 0.6);
     if (p.dompet < biaya) {
       p.kasus = kasus;
       throw new GameError(`Uang suap kurang. Butuh Rp ${jt(biaya)} jt.`);
     }
     p.dompet -= biaya;
-    const peluang = 0.75 - p.kecurigaan / 200;
+    // auditor yang sama makin waspada: tiap suap sebelumnya menurunkan peluang berhasil
+    const pernahSuap = p.jeda['suap:pakai'] ?? 0;
+    p.jeda['suap:pakai'] = pernahSuap + 1;
+    const peluang = Math.max(0.05, 0.75 - p.kecurigaan / 200 - 0.15 * pernahSuap);
     if (nextRandom(s) < peluang) {
       p.kecurigaan = clamp(p.kecurigaan - 20);
+      // uang yang lolos lewat suap belum benar-benar diusut: audit berikutnya menghitungnya lagi
+      p.korupsiTerusut = Math.max(0, (p.korupsiTerusut ?? 0) - Math.round(kasus.nilai / 1.2));
       return `Auditor "paham situasi" setelah menerima Rp ${jt(biaya)} jt. Laporan dinyatakan wajar.`;
     }
     s.status = 'ditangkap';

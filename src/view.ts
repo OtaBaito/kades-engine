@@ -504,7 +504,7 @@ function ringkasPolitik(state: VillageState) {
       },
     })),
     kasus: p.kasus
-      ? { sisaHari: Math.max(0, p.kasus.batas - state.hari), nilai: p.kasus.nilai, biayaSuap: Math.round(15_000_000 + p.kasus.nilai * 0.3), sidang: viewSidang(state) }
+      ? { sisaHari: Math.max(0, p.kasus.batas - state.hari), nilai: p.kasus.nilai, biayaSuap: Math.round(15_000_000 + p.kasus.nilai * 0.6), sidang: viewSidang(state) }
       : null,
     kampanye: kampanye
       ? {
