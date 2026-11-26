@@ -258,7 +258,10 @@ const NAMA_WAKIL = {
 };
 
 /** Nama belakang untuk membedakan calon kalau nama depan di desa ini sudah habis terpakai. */
-const NAMA_BELAKANG = ['Wibowo', 'Saputra', 'Hidayat', 'Kurniawan', 'Prasetyo', 'Lestari', 'Rahayu', 'Santoso', 'Nugroho', 'Wulandari', 'Firmansyah', 'Permana'];
+const NAMA_BELAKANG = {
+  l: ['Wibowo', 'Saputra', 'Hidayat', 'Kurniawan', 'Prasetyo', 'Santoso', 'Nugroho', 'Firmansyah', 'Permana', 'Setiawan'],
+  p: ['Lestari', 'Rahayu', 'Wulandari', 'Puspitasari', 'Handayani', 'Maharani', 'Anggraini', 'Pertiwi', 'Kusumawati', 'Safitri'],
+};
 
 /** Tunjangan wakil kades dari kas desa per bulan. */
 export const TUNJANGAN_WAKIL = 3 * JT;
@@ -731,7 +734,7 @@ export function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
     const g = nextRandom(s) < 0.35 ? 'p' : 'l';
     // nama yang belum pernah dipakai di desa ini; kalau stok habis, pakai nama lengkap dengan nama belakang
     let sisa = NAMA_WAKIL[g].filter((n) => !dipakai.has(n) && !intiLain.has(namaInti(n)));
-    if (!sisa.length) sisa = NAMA_WAKIL[g].flatMap((n) => NAMA_BELAKANG.map((b) => `${n} ${b}`)).filter((n) => !dipakai.has(n));
+    if (!sisa.length) sisa = NAMA_WAKIL[g].flatMap((n) => NAMA_BELAKANG[g].map((b) => `${n} ${b}`)).filter((n) => !dipakai.has(n));
     const nama = pilihAcak(s, sisa.length ? sisa : NAMA_WAKIL[g]);
     dipakai.add(nama);
     r.namaWakil.push(nama);
