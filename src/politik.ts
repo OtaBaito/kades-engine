@@ -354,7 +354,9 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
     const idx = Math.floor(nextRandom(s) * tersedia.length);
     const c = tersedia.splice(idx, 1)[0];
     // desa yang makin maju menarik penantang yang makin kuat (modal, jaringan partai, dukungan juragan)
-    const tarikan = 2 * Math.max(0, (s.level ?? 1) - 1) + 4 * (s.periode - 1);
+    // yang dihitung masa jabatan kades sekarang (petahana makin ditantang), bukan umur desa: kades baru di desa
+    // tua tidak langsung menghadapi penantang raksasa. Pengaruh level dibatasi.
+    const tarikan = 2 * Math.min(10, Math.max(0, (s.level ?? 1) - 1)) + 4 * Math.max(0, p.periodePemain - 1);
     // sampai 80 lurus; di atasnya melandai menuju 95, supaya penantang desa maju tidak mentok bersama di angka yang sama
     const mentah = 40 + nextRandom(s) * 20 + tarikan;
     const kekuatan = mentah <= 80 ? mentah : 80 + 15 * (1 - Math.exp(-(mentah - 80) / 20));
