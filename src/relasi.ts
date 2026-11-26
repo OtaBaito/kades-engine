@@ -15,6 +15,7 @@ import { GameError } from './errors.ts';
 import { nextRandom } from './rng.ts';
 import { bonusPerdes, tegakkanPerdes } from './usaha.ts';
 import { beritaDesa } from './berita.ts';
+import { bulananWakil, cekBolehBerhentikan, harianWakil, ijazahAwal, kekuatanWakilLawan, panggung, panggungAwal, tugaskanWakil, usulMakzulWakil, viewWakilPolitik, type KasusIjazah, type MakzulWakil, type TugasWakil } from './wakil.ts';
 import type { GroupId, IndexId, VillageState } from './types.ts';
 
 const JT = 1_000_000;
@@ -158,7 +159,7 @@ export const PERDES: PerdesDef[] = [
 
 export const MAKS_PERDES = 4;
 
-export type LatarWakil = 'mantan_aktivis' | 'anak_juragan' | 'keponakan_bupati' | 'pensiunan_aparat' | 'ketua_tani' | 'rival_pilkades' | 'kader_partai' | 'guru_honorer';
+export type LatarWakil = 'anak_pejabat' | 'mantan_aktivis' | 'anak_juragan' | 'keponakan_bupati' | 'pensiunan_aparat' | 'ketua_tani' | 'rival_pilkades' | 'kader_partai' | 'guru_honorer';
 
 export interface LatarWakilDef {
   nama: string;
@@ -171,6 +172,15 @@ export interface LatarWakilDef {
 }
 
 export const LATAR_WAKIL: Record<LatarWakil, LatarWakilDef> = {
+  anak_pejabat: {
+    nama: 'Putra pejabat kabupaten',
+    plus: ['Popularitas +5 (wajah muda, gampang viral)', 'Bupati +12', 'Pemuda +0,8 tiap bulan', 'Pamor tinggi: kuat saat blusukan dan mendulang suara pemuda di pilkades'],
+    minus: ['Integritas -5 (politik dinasti)', 'BPD -6', 'Sering digoyang isu syarat umur dan ijazah', 'Tidak bisa diberhentikan sepihak selama bupati masih dekat, harus lewat pemakzulan BPD'],
+    saatMasuk: { integritas: -5, popularitas: 5, bpd: -6, relasi: { bupati: 12 } },
+    bulanan: { kepuasan: { pemuda: 0.8 } },
+    loyalitas: [40, 65],
+    ambisi: [75, 95],
+  },
   mantan_aktivis: {
     nama: 'Mantan aktivis mahasiswa',
     plus: ['Pemuda +0,5 tiap bulan', 'BPD +5', 'Integritas +2'],
@@ -191,7 +201,7 @@ export const LATAR_WAKIL: Record<LatarWakil, LatarWakilDef> = {
   keponakan_bupati: {
     nama: 'Keponakan bupati',
     plus: ['Bupati +15', 'Camat +10 (selama bupatinya tidak berganti)'],
-    minus: ['Integritas -4 (nepotisme)', 'Warga -0,2 tiap bulan'],
+    minus: ['Integritas -4 (nepotisme)', 'Warga -0,2 tiap bulan', 'Tidak bisa diberhentikan sepihak selama bupati masih dekat'],
     saatMasuk: { integritas: -4, relasi: { bupati: 15, camat: 10 } },
     bulanan: { kepuasan: { petani: -0.2, pedagang: -0.2, pemuda: -0.2 } },
     loyalitas: [40, 65],
@@ -283,6 +293,14 @@ export interface Wakil {
   sejakHari?: number;
   /** Tunjangan sedang telat (supaya pemberitahuan cukup sekali per masa telat). */
   telat?: boolean;
+  /** Pamor wakil sendiri di mata warga (0-100). */
+  panggung?: number;
+  /** Tersembunyi dari pemain: keaslian ijazah. */
+  ijazah?: 'asli' | 'palsu';
+  /** Isu ijazah sudah pernah diputus pengadilan. */
+  ijazahDiuji?: boolean;
+  /** Ijazah terbukti tidak sah. */
+  ijazahTerbukti?: boolean;
 }
 
 export interface Mosi {
@@ -304,6 +322,10 @@ export interface StateRelasi {
   mosi: Mosi | null;
   wakil: Wakil | null;
   kandidatWakil: Wakil[];
+  /** Sidang pemakzulan wakil di BPD. */
+  makzulWakil?: MakzulWakil | null;
+  /** Gugatan ijazah wakil yang sedang berjalan. */
+  kasusIjazah?: KasusIjazah | null;
   jeda: Record<string, number>;
   nomor: number;
 }
@@ -343,6 +365,8 @@ function buatWakilTetap(s: VillageState, i: number): Wakil {
     latar,
     loyalitas: Math.round(def.loyalitas[0] + r * (def.loyalitas[1] - def.loyalitas[0])),
     ambisi: Math.round(def.ambisi[0] + (1 - r) * (def.ambisi[1] - def.ambisi[0])),
+    panggung: panggungAwal(latar, r),
+    ijazah: ijazahAwal(latar, (hash(`${s.namaDesa}|ij${i}`) % 1000) / 1000),
   };
 }
 
@@ -366,11 +390,11 @@ export function stateRelasi(s: VillageState): StateRelasi {
 
 // ---------------------------------------------------------------- bantuan
 
-function ubahRelasi(r: StateRelasi, id: IdTokoh, d: number) {
+export function ubahRelasi(r: StateRelasi, id: IdTokoh, d: number) {
   r.tokoh[id].relasi = clamp(r.tokoh[id].relasi + d);
 }
 
-function cekJeda(s: VillageState, r: StateRelasi, kunci: string, nama: string) {
+export function cekJeda(s: VillageState, r: StateRelasi, kunci: string, nama: string) {
   const sampai = r.jeda[kunci] ?? 0;
   if (s.hari < sampai) throw new GameError(`${nama} bisa dilakukan lagi dalam ${sampai - s.hari} hari.`);
 }
@@ -421,7 +445,7 @@ function rataKepuasan(s: VillageState): number {
   return v.reduce((t, x) => t + x, 0) / v.length;
 }
 
-function wakilMembelot(r: StateRelasi): boolean {
+export function wakilMembelot(r: StateRelasi): boolean {
   return Boolean(r.wakil && r.wakil.loyalitas < 30 && r.wakil.ambisi >= 55);
 }
 
@@ -623,10 +647,12 @@ export function responMosi(s: VillageState, cara: ResponMosi): string {
   return `Bupati ${t.nama} berjanji tidak akan meneken SK pemberhentian. Tentu saja, ada harganya. (relasi bupati -10)`;
 }
 
-export type AksiWakil = 'pilih' | 'rangkul' | 'berhentikan' | 'cari';
+export type AksiWakil = 'pilih' | 'rangkul' | 'berhentikan' | 'cari' | 'tugaskan' | 'makzulkan';
 
-export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: SumberDana = 'pribadi'): string {
+export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: SumberDana = 'pribadi', tugas?: TugasWakil): string {
   const r = stateRelasi(s);
+  if (aksi === 'tugaskan') return tugaskanWakil(s, tugas);
+  if (aksi === 'makzulkan') return usulMakzulWakil(s, true);
   if (aksi === 'cari') {
     if (r.wakil) throw new GameError('Kursi wakil kades sudah terisi. Berhentikan dulu wakil yang sekarang sebelum mencari calon baru.');
     cekJeda(s, r, 'wakil:cari', 'Mencari calon wakil baru');
@@ -655,7 +681,10 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   }
   // berhentikan
   cekJeda(s, r, 'wakil:ganti', 'Mengganti wakil');
+  cekBolehBerhentikan(r);
   r.wakil = null;
+  r.makzulWakil = null;
+  r.kasusIjazah = null;
   r.jeda['wakil:ganti'] = s.hari + 60;
   r.bpd = clamp(r.bpd - 5);
   if (w.latar === 'keponakan_bupati') ubahRelasi(r, 'bupati', -15);
@@ -670,7 +699,7 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   return `${w.nama} diberhentikan dari kursi wakil kades.${dendam ? ' Dia pulang dengan dendam dan mulai mengumpulkan pendukung.' : ''} (BPD -5)`;
 }
 
-function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
+export function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
   const latar = (Object.keys(LATAR_WAKIL) as LatarWakil[]).filter((l) => l !== r.wakil?.latar);
   const hasil: Wakil[] = [];
   const dipakai = new Set<string>([r.wakil?.nama ?? '']);
@@ -687,6 +716,8 @@ function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
       latar: l,
       loyalitas: Math.round(def.loyalitas[0] + nextRandom(s) * (def.loyalitas[1] - def.loyalitas[0])),
       ambisi: Math.round(def.ambisi[0] + nextRandom(s) * (def.ambisi[1] - def.ambisi[0])),
+      panggung: panggungAwal(l, nextRandom(s)),
+      ijazah: ijazahAwal(l, nextRandom(s)),
     });
   }
   return hasil;
@@ -841,10 +872,13 @@ export function harianRelasi(s: VillageState, catat: Catat): void {
   }
   // mosi pemakzulan: hari pemungutan suara BPD
   if (r.mosi && s.hari >= r.mosi.batasHari) putuskanMosi(s, r, catat);
+  // wakil: gugatan ijazah, sidang pemakzulan wakil, penanda kartu
+  harianWakil(s, r, catat);
+  if (!r.wakil && r.kandidatWakil.length === 0) r.kandidatWakil = buatKandidatAcak(s, r);
   // wakil yang membelot ikut maju di pilkades
   const k = s.politik.kampanye;
   if (k && r.wakil && wakilMembelot(r) && r.wakil.ambisi >= 60 && !k.lawan.some((l) => l.id === 'wakil')) {
-    k.lawan.push({ id: 'wakil', nama: r.wakil.nama, kubu: 'mantan wakil kades', kekuatan: Math.round(40 + r.wakil.ambisi / 5) });
+    k.lawan.push({ id: 'wakil', nama: r.wakil.nama, kubu: 'mantan wakil kades', kekuatan: kekuatanWakilLawan(r.wakil) });
     catat('buruk', `Wakil kades ${r.wakil.nama} mundur dan ikut mencalonkan diri melawanmu di pilkades.`);
     r.wakil = null;
   } else if (k && s.flags?.includes('mantan_wakil_dendam') && !k.lawan.some((l) => l.id === 'mantan_wakil')) {
@@ -899,6 +933,7 @@ export function bulananRelasi(s: VillageState, catat: Catat): void {
     for (const [i, d] of Object.entries(b.indeks ?? {})) s.indeks[i as IndexId] = clamp(s.indeks[i as IndexId] + (d ?? 0));
   }
   // wakil kades
+  bulananWakil(r);
   const w = r.wakil;
   if (w) {
     // tunjangan wakil: kalau kas kosong tidak dibayar, dan wakil makin kecewa
@@ -1022,8 +1057,23 @@ export function viewRelasi(s: VillageState) {
         }
       : null,
     risikoMosi: r.bpd < 30 ? 'tinggi' : r.bpd < 40 ? 'waspada' : 'aman',
-    wakil: r.wakil ? { ...r.wakil, loyalitas: Math.round(r.wakil.loyalitas), ambisi: Math.round(r.wakil.ambisi ?? 0), ...latarView(r.wakil.latar), membelot: wakilMembelot(r) } : null,
-    kandidatWakil: r.kandidatWakil.map((k) => ({ ...k, ...latarView(k.latar) })),
+    wakil: r.wakil
+      ? {
+          id: r.wakil.id,
+          nama: r.wakil.nama,
+          latar: r.wakil.latar,
+          sejakHari: r.wakil.sejakHari,
+          loyalitas: Math.round(r.wakil.loyalitas),
+          ambisi: Math.round(r.wakil.ambisi ?? 0),
+          panggung: Math.round(panggung(r.wakil)),
+          ijazahTerbukti: Boolean(r.wakil.ijazahTerbukti),
+          ijazahDiuji: Boolean(r.wakil.ijazahDiuji),
+          ...latarView(r.wakil.latar),
+          membelot: wakilMembelot(r),
+        }
+      : null,
+    kandidatWakil: r.kandidatWakil.map((k) => ({ id: k.id, nama: k.nama, latar: k.latar, loyalitas: k.loyalitas, ambisi: k.ambisi, panggung: Math.round(panggung(k)), ...latarView(k.latar) })),
+    wakilPolitik: viewWakilPolitik(s, r),
     tunjanganWakil: TUNJANGAN_WAKIL,
     jedaWakil: { cari: sisa('wakil:cari'), rangkul: sisa('wakil:rangkul'), ganti: sisa('wakil:ganti') },
   };

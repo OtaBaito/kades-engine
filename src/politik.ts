@@ -3,6 +3,7 @@
 // Semua nama orang, lembaga, dan aturan di sini fiktif.
 import { faktorAuditPegawai, faktorTemuan } from './tugas.ts';
 import { faktorAudit } from './relasi.ts';
+import { bonusSuaraWakil } from './wakil.ts';
 import { faktorAuditNasional } from './berita.ts';
 import { JABATAN_DESA, angkatKeluarga, honorKeluarga } from './jabatan.ts';
 import { GROUPS } from './content/groups.ts';
@@ -384,7 +385,8 @@ function porsiSuara(s: VillageState, g: GroupId, m: AnggotaKeluarga | undefined,
     ? 0.36 + (s.kepuasan[g] - 50) / 130 + (s.popularitas - 50) / 300 + (m.elektabilitas - 40) / 150 + (m.kompetensi - 50) / 400 + integritas
     : 0.36 + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
   // penantang kuat benar-benar menggerus suara: kades populer pun harus tetap merawat warga di tahun pilkades
-  return dasar + bonus / 100 - (lawanTerkuat - 50) / 80;
+  // wakil setia yang berpamor ikut mendulang suara; wakil yang tidak setia diam-diam menggembosi
+  return dasar + bonus / 100 + bonusSuaraWakil(s, g) / 100 - (lawanTerkuat - 50) / 80;
 }
 
 /**

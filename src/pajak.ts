@@ -186,11 +186,14 @@ export function bulananPajak(s: VillageState, catat: (j: 'baik' | 'buruk' | 'inf
     } else if (realisasi < 0.7) {
       s.kepuasan.tokoh = Math.max(0, s.kepuasan.tokoh - 3);
       s.popularitas = Math.max(0, s.popularitas - 2);
-      catat('buruk', `Realisasi PBB cuma ${Math.round(realisasi * 100)}%. Camat menegur di depan kades se-kecamatan.`);
+      const mengendap = p.titipanPbb > 0 ? ` PBB yang sudah ditagih dari warga (Rp ${Math.round(p.titipanPbb / JT)} jt) masih mengendap di kas sebagai titipan, belum disetor.` : '';
+      catat('buruk', `Realisasi PBB cuma ${Math.round(realisasi * 100)}%. Camat menegur di depan kades se-kecamatan.${mengendap}`);
     } else {
       catat('info', `Realisasi PBB tahun ini ${Math.round(realisasi * 100)}%.`);
     }
     p.pbb = { tahun: tahunKe(s) + 1, target: Math.round((totalJiwa(s) * PAJAK.pbbPerJiwa) / JT) * JT, tertagih: 0, disetor: 0, mode: p.pbb.mode };
+    // tunggakan PBB tahun lalu tetap titipan yang wajib disetor, tapi tidak dihitung sebagai realisasi tahun baru
+    p.titipanPbb = 0;
   }
 }
 

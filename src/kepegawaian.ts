@@ -323,6 +323,7 @@ export function efekKeStaf(s: VillageState, stafId: string | undefined, e: impor
 
 /** Isi {nama} dan {peran} di teks kartu dengan pegawai tokohnya. */
 export function isiTokohStaf(s: VillageState, stafId: string | undefined, teks: string): string {
+  if (teks.includes('{wakil}')) teks = teks.replaceAll('{wakil}', s.relasi?.wakil?.nama ?? 'wakil kades');
   if (!stafId || !teks.includes('{')) return teks;
   const x = s.staf.find((st) => st.id === stafId);
   const peran = x ? (PEGAWAI.find((p) => p.id === x.peran)?.peran ?? x.peran) : 'pegawai';

@@ -41,6 +41,8 @@ export interface Effect {
   stafGajiX?: number;
   stafTambahSifat?: string;
   stafHapusSifat?: string;
+  /** Efek ke wakil kades (loyalitas, pamor, gugatan ijazah, usul pemakzulan). */
+  wakil?: import('./wakil.ts').EfekWakil;
 }
 
 export interface DelayedEffect {
@@ -491,7 +493,7 @@ export type Action =
   | { type: 'bpd'; aksi: 'jamuan' | 'rapat_terbuka'; dana?: 'pribadi' | 'dinas'; alasan?: string }
   | { type: 'perdes'; id: string; aksi: 'usul' | 'cabut'; alasan?: string }
   | { type: 'mosi'; cara: 'lobi' | 'dialog' | 'perlindungan'; alasan?: string }
-  | { type: 'wakil'; aksi: 'pilih' | 'rangkul' | 'berhentikan' | 'cari'; id?: string; dana?: 'pribadi' | 'dinas'; alasan?: string }
+  | { type: 'wakil'; aksi: 'pilih' | 'rangkul' | 'berhentikan' | 'cari' | 'tugaskan' | 'makzulkan'; id?: string; dana?: 'pribadi' | 'dinas'; tugas?: 'blusukan' | 'lobi' | 'redam_bpd'; alasan?: string }
   | { type: 'usaha'; id: string; aksi: 'setujui' | 'csr' | 'pelicin' | 'tolak' | 'tutup'; alasan?: string }
   | { type: 'tanggapi_pidato'; tanggapan: 'dukung' | 'diam' | 'kritik'; alasan?: string }
   | { type: 'baca_berita' }

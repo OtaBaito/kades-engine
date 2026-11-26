@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 54 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 56 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardOption } from '../types.ts';
 

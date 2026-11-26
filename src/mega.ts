@@ -364,8 +364,9 @@ export const KARTU_MEGA: CardDef[] = [
 ];
 
 /**
- * Ganti kades: sisa kas kades lama dipakai melunasi tagihan proyek besar yang belum lunas. Kalau masih kurang,
- * pengerjaan diselesaikan sesuai uang yang sudah masuk (manfaat proporsional), jadi kades baru tidak mewarisi utang.
+ * Ganti kades: sisa kas kades lama dipakai melunasi tagihan proyek besar yang belum lunas. Kalau masih kurang dan
+ * proyeknya mangkrak atau lewat jatuh tempo, pengerjaan diselesaikan sesuai uang yang sudah masuk (manfaat
+ * proporsional), jadi kades baru tidak mewarisi utang. Proyek yang sehat diteruskan sesuai jadwal.
  */
 export function serahTerimaMega(s: VillageState, kasLama: number): string | null {
   const m = s.mega;
@@ -378,10 +379,19 @@ export function serahTerimaMega(s: VillageState, kasLama: number): string | null
   const nama = NAMA_TAHAP(def, m.tahapKe ?? 0);
   const pakai = Math.max(0, Math.min(sisa, kasLama));
   m.dibayar += pakai;
+  if (m.dibayar >= total) {
+    m.tenggang = undefined;
+    m.mangkrak = false;
+    m.jatuhTempo = Number.MAX_SAFE_INTEGER;
+    return `Sisa kas kades lama (${Math.round(pakai / JT)} jt) melunasi tagihan ${nama}. Pengerjaan berlanjut tanpa tagihan baru.`;
+  }
+  // proyek sehat (tidak mangkrak, belum lewat jatuh tempo): jadwal tagihan tetap, kades baru yang meneruskan
+  if (!m.mangkrak && m.tenggang === undefined && s.hari < m.jatuhTempo) {
+    return `${nama} berjalan sesuai jadwal${pakai > 0 ? `; sisa kas kades lama ${Math.round(pakai / JT)} jt dipakai mencicil tagihannya` : ''}. Sisa tagihan ${Math.round((total - m.dibayar) / JT)} jt diteruskan kades baru, tahap berikutnya jatuh tempo ${m.jatuhTempo - s.hari} hari lagi.`;
+  }
   m.tenggang = undefined;
   m.mangkrak = false;
   m.jatuhTempo = Number.MAX_SAFE_INTEGER;
-  if (m.dibayar >= total) return `Sisa kas kades lama (${Math.round(pakai / JT)} jt) melunasi tagihan ${nama}. Pengerjaan berlanjut tanpa tagihan baru.`;
   m.porsi = Math.max(0.1, m.dibayar / total) * (m.porsi ?? 1);
   m.biaya = m.dibayar;
   return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat: pemasukan sekitar ${Math.round((def.pemasukanBulanan * skala(m.tahapKe ?? 0) * m.porsi) / JT)} jt per bulan dari normalnya ${Math.round((def.pemasukanBulanan * skala(m.tahapKe ?? 0)) / JT)} jt), kades baru tidak menanggung utangnya.`;

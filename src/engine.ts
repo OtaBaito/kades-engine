@@ -11,6 +11,7 @@ import { klaimHarian } from './harian.ts';
 import { bukaSidang, jawabAuditor } from './sidang.ts';
 import { bukaDusun } from './dusun.ts';
 import { harianMega, mulaiMega, serahTerimaMega } from './mega.ts';
+import { efekWakil } from './wakil.ts';
 import { angkatKeluarga, lepasSemuaJabatanKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
 import { aturPajak, bulananPajak, kasBersih, setorSerahTerima } from './pajak.ts';
@@ -908,6 +909,8 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
     r.bpd = 50;
     r.wakil = null;
     r.mosi = null;
+    r.makzulWakil = null;
+    r.kasusIjazah = null;
     r.kandidatWakil = [];
   }
   state.ringkasanPergi = undefined;
@@ -1037,7 +1040,7 @@ function jalankanAksi(state: VillageState, action: Action, events: LogEntry[], c
   if (action.type === 'bpd') return politik(aturBpd(state, action.aksi, action.dana), 'politik');
   if (action.type === 'perdes') return politik(aturPerdes(state, action.id, action.aksi), 'politik');
   if (action.type === 'mosi') return politik(responMosi(state, action.cara), 'politik');
-  if (action.type === 'wakil') return politik(aturWakil(state, action.aksi, action.id, action.dana), 'politik');
+  if (action.type === 'wakil') return politik(aturWakil(state, action.aksi, action.id, action.dana, action.tugas), 'politik');
   if (action.type === 'pakai_dompet') return politik(pakaiDompet(state, action.tujuan, action.jumlah));
   if (action.type === 'hadapi_audit') return politik(action.pilihan === 'ngeles' ? bukaSidang(state) : selesaikanAudit(state, action.pilihan, catat));
   if (action.type === 'jawab_auditor') {
@@ -1212,6 +1215,7 @@ export function applyEffect(state: VillageState, e: Effect): void {
   if (e.jadwalKartu) (state.antreanKartu ??= []).push({ cardId: e.jadwalKartu.cardId, hari: state.hari + e.jadwalKartu.setelahHari });
   for (const f of e.setFlag ?? []) if (!hasFlag(state, f)) state.flags.push(f);
   for (const f of e.hapusFlag ?? []) removeFlag(state, f);
+  if (e.wakil) efekWakil(state, e.wakil);
 }
 
 function addKas(state: VillageState, amount: number, pos: PosKas = 'Keputusan & kejadian'): void {

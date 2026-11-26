@@ -7,6 +7,7 @@ import { viewSidang } from './sidang.ts';
 import { labelPeran } from './politik.ts';
 import { viewDusun } from './dusun.ts';
 import { peringatanTagihanMega, viewMega } from './mega.ts';
+import { describeEfekWakil } from './wakil.ts';
 import { viewJabatan } from './jabatan.ts';
 import { batasSilpa, viewInvestasi } from './investasi.ts';
 import { CARD_BY_ID } from './content/cards.ts';
@@ -81,6 +82,7 @@ export function describeEffect(e: Effect): string[] {
   if (e.stafGajiX) out.push(`Gaji pegawai ${e.stafGajiX > 1 ? 'naik' : 'turun'} ${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`);
   if (e.stafHapusSifat) out.push(`Sifat "${SIFAT[e.stafHapusSifat]?.nama ?? e.stafHapusSifat}" hilang`);
   if (e.stafTambahSifat) out.push(`Jadi bersifat "${SIFAT[e.stafTambahSifat]?.nama ?? e.stafTambahSifat}"`);
+  if (e.wakil) out.push(...describeEfekWakil(e.wakil));
   return out;
 }
 
@@ -114,6 +116,11 @@ export function effectDetails(e: Effect): EfekRinci[] {
   if (e.stafGajiX) out.push({ jenis: 'staf', teks: `Gaji ${e.stafGajiX > 1 ? '+' : '-'}${Math.round(Math.abs(e.stafGajiX - 1) * 100)}%`, nilai: 1 - e.stafGajiX });
   if (e.stafHapusSifat) out.push({ jenis: 'staf', teks: `Tak lagi ${SIFAT[e.stafHapusSifat]?.nama.toLowerCase() ?? e.stafHapusSifat}`, nilai: SIFAT[e.stafHapusSifat]?.baik ? -1 : 1 });
   if (e.stafTambahSifat) out.push({ jenis: 'staf', teks: SIFAT[e.stafTambahSifat]?.nama ?? e.stafTambahSifat, nilai: SIFAT[e.stafTambahSifat]?.baik ? 1 : -1 });
+  // efek ke wakil: loyalitas baik untuk kades, pamor dan ambisi wakil cenderung jadi ancaman
+  if (e.wakil?.loyalitas) out.push({ jenis: 'staf', teks: `Loyalitas wakil ${e.wakil.loyalitas > 0 ? '+' : ''}${e.wakil.loyalitas}`, nilai: e.wakil.loyalitas });
+  if (e.wakil?.panggung) out.push({ jenis: 'staf', teks: `Pamor wakil ${e.wakil.panggung > 0 ? '+' : ''}${e.wakil.panggung}`, nilai: 0 });
+  if (e.wakil?.ambisi) out.push({ jenis: 'staf', teks: `Ambisi wakil ${e.wakil.ambisi > 0 ? '+' : ''}${e.wakil.ambisi}`, nilai: -e.wakil.ambisi });
+  if (e.wakil?.makzul) out.push({ jenis: 'staf', teks: 'Usul makzulkan wakil', nilai: 0 });
   return out;
 }
 

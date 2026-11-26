@@ -422,3 +422,20 @@ test('ekonomi akhir: biaya proyek besar ikut kemampuan desa, BUMDes jenuh tapi n
     }
   }
 });
+
+test('ganti kades: proyek besar yang sehat diteruskan sesuai jadwal, tidak dirampingkan', async () => {
+  const { lanjutkanDesa } = await import('../src/index.ts');
+  let s = createVillage({ seed: 'mega-sehat', namaDesa: 'A', namaKades: 'B' });
+  s.level = 9;
+  s.kas = 2_000_000_000;
+  s = applyAction(s, { type: 'mulai_megaproyek', id: 'jalan_tembus' }).state;
+  s.kas = 50_000_000;
+  s.status = 'pensiun' as typeof s.status;
+  const sebelum = s.mega!;
+  const n = lanjutkanDesa(s, 'Sulastri');
+  assert.equal(n.mega!.porsi, undefined, 'manfaat tidak dipotong');
+  assert.equal(n.mega!.biaya, sebelum.biaya);
+  assert.equal(n.mega!.jatuhTempo, sebelum.jatuhTempo);
+  assert.ok(n.mega!.dibayar > sebelum.dibayar, 'kas lama mencicil tagihan');
+  assert.ok(n.jurnal.some((l) => /diteruskan kades baru/.test(l.teks)));
+});

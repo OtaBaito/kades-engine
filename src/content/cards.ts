@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 54 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 56 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardDef } from '../types.ts';
 
@@ -2825,6 +2825,109 @@ export const CARDS: CardDef[] = [
           "kas": -3000000,
           "kepuasan": {
             "tokoh": 2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "wakil_ijazah_1",
+    "judul": "Ijazah Wakil Kades Dipertanyakan",
+    "teks": "Seorang pegiat media sosial mengunggah foto ijazah SMA {wakil}. Katanya hurufnya beda dari angkatan yang sama, capnya miring, dan sekolahnya sudah tutup sebelum tahun lulus yang tertulis. Warga ramai bertanya: kades di pihak siapa?",
+    "kategori": "politik",
+    "bobot": 3,
+    "jedaHari": 60,
+    "bersambung": true,
+    "syarat": {
+      "flag": "wk_ijazah"
+    },
+    "opsi": [
+      {
+        "id": "uji",
+        "label": "Minta uji keaslian terbuka ke dinas pendidikan",
+        "effect": {
+          "kas": -5000000,
+          "integritas": 2,
+          "wakil": {
+            "loyalitas": -8,
+            "sikapIjazah": "uji"
+          },
+          "jadwalKartu": {
+            "cardId": "wakil_ijazah_2",
+            "setelahHari": 10
+          }
+        }
+      },
+      {
+        "id": "bela",
+        "label": "Pasang badan: \"ijazahnya asli, titik\"",
+        "effect": {
+          "kecurigaan": 4,
+          "wakil": {
+            "loyalitas": 12,
+            "sikapIjazah": "bela"
+          },
+          "jadwalKartu": {
+            "cardId": "wakil_ijazah_2",
+            "setelahHari": 10
+          }
+        }
+      },
+      {
+        "id": "diam",
+        "label": "Itu urusan pribadi wakil, kades tidak ikut campur",
+        "effect": {
+          "popularitas": -1,
+          "wakil": {
+            "sikapIjazah": "diam"
+          },
+          "jadwalKartu": {
+            "cardId": "wakil_ijazah_2",
+            "setelahHari": 14
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "wakil_ijazah_2",
+    "judul": "Sidang Gugatan Ijazah Wakil Kades",
+    "teks": "Gugatan warga soal ijazah {wakil} masuk persidangan. Majelis meminta kantor desa menyerahkan berkas pencalonan wakil, termasuk fotokopi ijazah yang dulu dilegalisir. Putusan dibacakan esok hari.",
+    "kategori": "politik",
+    "bobot": 1,
+    "hanyaLanjutan": true,
+    "syarat": {
+      "flag": "wk_ada"
+    },
+    "opsi": [
+      {
+        "id": "terbuka",
+        "label": "Serahkan semua berkas apa adanya",
+        "effect": {
+          "integritas": 1,
+          "wakil": {
+            "sidang": "terbuka"
+          }
+        }
+      },
+      {
+        "id": "tunda",
+        "label": "Bilang berkasnya hilang kena banjir, minta sidang ditunda",
+        "effect": {
+          "kecurigaan": 5,
+          "wakil": {
+            "sidang": "tunda"
+          }
+        }
+      },
+      {
+        "id": "lobi",
+        "label": "Titip pesan ke majelis lewat kenalan di kabupaten",
+        "effect": {
+          "dompet": -15000000,
+          "kecurigaan": 6,
+          "wakil": {
+            "sidang": "lobi"
           }
         }
       }
