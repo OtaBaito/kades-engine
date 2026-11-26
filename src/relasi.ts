@@ -15,7 +15,7 @@ import { GameError } from './errors.ts';
 import { nextRandom } from './rng.ts';
 import { bonusPerdes, tegakkanPerdes } from './usaha.ts';
 import { beritaDesa } from './berita.ts';
-import { bulananWakil, cekBolehBerhentikan, harianWakil, ijazahAwal, kekuatanWakilLawan, panggung, panggungAwal, tugaskanWakil, usulMakzulWakil, viewWakilPolitik, type KasusIjazah, type MakzulWakil, type TugasWakil } from './wakil.ts';
+import { buangKartuWakil, bulananWakil, cekBolehBerhentikan, harianWakil, ijazahAwal, kekuatanWakilLawan, panggung, panggungAwal, tugaskanWakil, usulMakzulWakil, viewWakilPolitik, type KasusIjazah, type MakzulWakil, type TugasWakil } from './wakil.ts';
 import type { GroupId, IndexId, VillageState } from './types.ts';
 
 const JT = 1_000_000;
@@ -693,6 +693,7 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   cekBolehBerhentikan(r);
   r.wakil = null;
   r.makzulWakil = null;
+  buangKartuWakil(s, r);
   r.jeda['wakil:ganti'] = s.hari + 60;
   r.bpd = clamp(r.bpd - 5);
   if (w.latar === 'keponakan_bupati') ubahRelasi(r, 'bupati', -15);

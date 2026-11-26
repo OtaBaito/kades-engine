@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 56 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 57 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardDef } from '../types.ts';
 
@@ -2925,6 +2925,57 @@ export const CARDS: CardDef[] = [
           "kecurigaan": 6,
           "wakil": {
             "sidang": "lobi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "wakil_viral",
+    "judul": "Wakil Kades Viral di Pasar",
+    "teks": "{wakil} viral setelah membagikan susu kotak dan kaus bergambar wajahnya sendiri di pasar desa. Videonya ditonton ribuan kali, kolom komentar penuh pujian dan sindiran. Ada yang bertanya kenapa wajah kades tidak ada di kaus itu.",
+    "kategori": "politik",
+    "bobot": 2.5,
+    "jedaHari": 120,
+    "syarat": {
+      "flag": "wk_panggung"
+    },
+    "opsi": [
+      {
+        "id": "nebeng",
+        "label": "Ikut tampil di video berikutnya",
+        "effect": {
+          "kas": -5000000,
+          "popularitas": 2,
+          "kepuasan": {
+            "pemuda": 2
+          },
+          "wakil": {
+            "panggung": 3
+          }
+        }
+      },
+      {
+        "id": "tegur",
+        "label": "Tegur: kegiatan desa jangan jadi panggung pribadi",
+        "effect": {
+          "integritas": 1,
+          "wakil": {
+            "loyalitas": -8,
+            "panggung": -5
+          }
+        }
+      },
+      {
+        "id": "biar",
+        "label": "Biarkan saja, toh warga senang",
+        "effect": {
+          "kepuasan": {
+            "pemuda": 1
+          },
+          "wakil": {
+            "panggung": 8,
+            "ambisi": 4
           }
         }
       }

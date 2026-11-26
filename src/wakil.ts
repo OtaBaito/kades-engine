@@ -360,6 +360,7 @@ export function harianWakil(s: VillageState, r: StateRelasi, catat: Catat): void
     else putuskanIjazahMantan(s, r, catat);
   }
   if (!r.wakil) {
+    buangKartuWakil(s, r);
     r.makzulWakil = null;
     // gugatan yang belum disidang tetap menunggu kartunya, asal tergugatnya tercatat
     if (r.kasusIjazah && !r.kasusIjazah.nama) r.kasusIjazah = null;
@@ -383,6 +384,16 @@ export function harianWakil(s: VillageState, r: StateRelasi, catat: Catat): void
     if (digoyang && !w.ijazahDiuji && !r.kasusIjazah && s.hari - (w.sejakHari ?? 0) >= 21) tanda.add('wk_ijazah');
   }
   s.flags = [...s.flags.filter((f) => !f.startsWith('wk_')), ...tanda];
+}
+
+/**
+ * Kursi wakil kosong: kartu wakil yang sudah terlanjur masuk kotak atau antrean dibuang, supaya tidak muncul
+ * tanpa tokohnya. Sidang ijazah tetap jalan kalau gugatannya sudah mencatat nama tergugat.
+ */
+export function buangKartuWakil(s: VillageState, r: StateRelasi): void {
+  const tetap = (id: string) => !id.startsWith('wakil_') || (id === 'wakil_ijazah_2' && Boolean(r.kasusIjazah?.nama));
+  if (s.kotakMasuk?.some((k) => !tetap(k.cardId))) s.kotakMasuk = s.kotakMasuk.filter((k) => tetap(k.cardId));
+  if (s.antreanKartu?.some((k) => !tetap(k.cardId))) s.antreanKartu = s.antreanKartu.filter((k) => tetap(k.cardId));
 }
 
 /** Dipanggil tiap bulan: pamor wakil naik-turun sendiri. */

@@ -161,3 +161,10 @@ test('mantan wakil dendam: tampil dengan nama dan sebab yang benar, ijazah palsu
   assert.ok(n.politik.kampanye!.lawan.some((l) => l.id === 'mantan_wakil' && l.nama === 'Mas Aris'));
   assert.ok(n.jurnal.some((l) => /Mas Aris, mantan wakil kades yang dimakzulkan BPD/.test(l.teks)));
 });
+
+test('kartu wakil yang terlanjur masuk dibuang saat kursi wakil kosong', () => {
+  let s = denganWakil('guru_honorer', 'buang');
+  s.kotakMasuk = [{ instanceId: 'b1', cardId: 'wakil_ijazah_1', hariMasuk: s.hari }, { instanceId: 'b2', cardId: 'wakil_viral', hariMasuk: s.hari }];
+  s = applyAction(s, { type: 'wakil', aksi: 'berhentikan' }).state;
+  assert.equal(s.kotakMasuk.filter((k) => k.cardId.startsWith('wakil_')).length, 0);
+});
