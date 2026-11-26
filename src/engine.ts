@@ -845,7 +845,8 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   // pilihan sedikit = desa sedang tenang; jangan langsung memunculkan kartu yang baru terbuka,
   // supaya urutan event tidak bisa ditebak
   if (!awal && kandidat.length < 5 && nextRandom(state) > kandidat.length / 5) return;
-  const card = pickWeighted(state, kandidat, (c) => c.bobot);
+  // bulan kampanye: kartu kampanye diutamakan, supaya tidak tenggelam di antara ratusan kartu desa besar
+  const card = pickWeighted(state, kandidat, (c) => (c.kategori === 'kampanye' ? c.bobot * 5 : c.bobot));
   if (!card) return;
   if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(Math.max(card.jedaHari, card.syarat?.bulanTahun || card.kategori === 'kampanye' ? 0 : 240) * (1 + 0.5 * nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita
