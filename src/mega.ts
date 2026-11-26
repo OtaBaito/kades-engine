@@ -373,7 +373,7 @@ export function serahTerimaMega(s: VillageState, kasLama: number): string | null
   if (m.dibayar >= total) return `Sisa kas kades lama (${Math.round(pakai / JT)} jt) melunasi tagihan ${nama}. Pengerjaan berlanjut tanpa tagihan baru.`;
   m.porsi = Math.max(0.1, m.dibayar / total) * (m.porsi ?? 1);
   m.biaya = m.dibayar;
-  return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat), kades baru tidak menanggung utangnya.`;
+  return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat: pemasukan sekitar ${Math.round((def.pemasukanBulanan * m.porsi) / JT)} jt per bulan dari normalnya ${Math.round(def.pemasukanBulanan / JT)} jt), kades baru tidak menanggung utangnya.`;
 }
 
 /** Peringatan di kartu yang memakan kas saat tagihan tahap proyek besar sudah dekat. */
