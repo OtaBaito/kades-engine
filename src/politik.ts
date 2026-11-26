@@ -355,7 +355,10 @@ export function mulaiKampanye(s: VillageState, catat: Catat): void {
     const c = tersedia.splice(idx, 1)[0];
     // desa yang makin maju menarik penantang yang makin kuat (modal, jaringan partai, dukungan juragan)
     const tarikan = 2 * Math.max(0, (s.level ?? 1) - 1) + 4 * (s.periode - 1);
-    lawan.push({ id: `lawan${i + 1}`, nama: c.nama, kubu: c.kubu, kekuatan: Math.min(92, Math.round(40 + nextRandom(s) * 20 + tarikan)) });
+    // sampai 80 lurus; di atasnya melandai menuju 95, supaya penantang desa maju tidak mentok bersama di angka yang sama
+    const mentah = 40 + nextRandom(s) * 20 + tarikan;
+    const kekuatan = mentah <= 80 ? mentah : 80 + 15 * (1 - Math.exp(-(mentah - 80) / 20));
+    lawan.push({ id: `lawan${i + 1}`, nama: c.nama, kubu: c.kubu, kekuatan: Math.round(kekuatan * 10) / 10 });
   }
   // batas periode berlaku untuk masa jabatan berturut-turut: kades yang satu periode tidak menjabat
   // (penerus atau jagoannya yang memimpin) boleh mencalonkan diri lagi
@@ -478,14 +481,16 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
   }
   const persen = Math.round((suara / total) * 1000) / 10;
   // suara terbanyak menang: sisa suara terbagi ke para lawan sesuai kekuatan, seperti di survei
-  const juara = bagiSuaraLawan(k.lawan, 100 - persen).sort((a, b) => b.persen - a.persen)[0];
+  const urutLawan = bagiSuaraLawan(k.lawan, 100 - persen).sort((a, b) => b.persen - a.persen);
+  const juara = urutLawan[0];
+  const kedua = urutLawan[1];
   const menang = !juara || persen > juara.persen;
   const runner = juara ? ` Runner-up ${juara.nama} dengan ${koma(juara.persen)}%.` : '';
   p.kampanye = null;
   s.flags = s.flags.filter((f) => f !== 'lawan_sembako' && f !== 'lapor_panwas');
   if (!menang) {
     s.status = 'kalah';
-    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${koma(persen)}% suara. Pemenangnya ${juara.nama} dengan ${koma(juara.persen)}%.`);
+    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${koma(persen)}% suara. Pemenangnya ${juara.nama} dengan ${koma(juara.persen)}%${kedua ? `, disusul ${kedua.nama} ${koma(kedua.persen)}%` : ''}.`);
     return { menang, persen, perKelompok };
   }
   if (m) {
