@@ -153,7 +153,13 @@ export function bulananTugas(s: VillageState, catat: Catat): void {
   if (kosong(s, 'humas')) s.popularitas = clamp(s.popularitas - 1);
 
   // Operator Sistem Desa
-  if (kosong(s, 'operator') && nextRandom(s) < 0.15 && !s.flags.includes('termin_ditahan')) {
+  if (kosong(s, 'operator') && !s.flags.includes('termin_ditahan') && s.hari >= (s.politik.jeda['ingat:operator'] ?? 0)) {
+    s.politik.jeda['ingat:operator'] = s.hari + 90;
+    catat('buruk', 'Kursi operator sistem desa kosong. Laporan Siskeudes bisa telat dan termin dana desa ikut tertahan. Rekrut operator di menu pegawai.');
+  }
+  // sanksi baru berlaku setidaknya 30 hari setelah peringatan pertama
+  const sudahDiingatkan = (s.politik.jeda['ingat:operator'] ?? Infinity) - 90 <= s.hari - 30;
+  if (kosong(s, 'operator') && sudahDiingatkan && nextRandom(s) < 0.15 && !s.flags.includes('termin_ditahan')) {
     s.flags = [...s.flags, 'termin_ditahan'];
     s.alasanTerminDitahan = 'laporan Siskeudes telat karena kursi operator kosong';
     catat('buruk', 'Laporan Siskeudes desa telat diunggah karena tidak ada operator. Termin dana desa berikutnya tertahan.');

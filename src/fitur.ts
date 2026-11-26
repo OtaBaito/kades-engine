@@ -165,13 +165,21 @@ export function lajuKoin(s: VillageState): Record<string, number> {
   return laju;
 }
 
-export function hariKoin(s: VillageState): void {
+export function hariKoin(s: VillageState, catat?: Catat): void {
   // mogok perangkat atau blokade jalan menahan iuran dan retribusi
   const f = faktorKoinUnjuk(s);
+  let penuh = 0;
   for (const [sumber, per] of Object.entries(lajuKoin(s))) {
     const batas = per * FITUR.batasKoinHari;
     const n = per * (sumber.startsWith('rumah:') ? f.rumah : f.usaha);
+    if ((s.koin[sumber] ?? 0) + n > batas) penuh += 1;
     s.koin[sumber] = Math.min(batas, (s.koin[sumber] ?? 0) + n);
+  }
+  // pemasukan mulai hangus: ingatkan paling sering sebulan sekali
+  if (catat && penuh > 0 && !s.pegawai.includes('bendahara') && s.hari >= (s.politik.jeda['ingat:retribusi'] ?? 0)) {
+    s.politik.jeda['ingat:retribusi'] = s.hari + 30;
+    const total = Object.values(s.koin).reduce((t, v) => t + v, 0);
+    catat('buruk', `Iuran dan retribusi ${Math.round(total / 1_000_000)} jt menumpuk belum ditagih dan ${penuh} sumber berhenti bertambah. Tagih sekarang, atau angkat bendahara supaya ditagih otomatis.`);
   }
 }
 

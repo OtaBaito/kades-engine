@@ -503,7 +503,7 @@ function dailyUpdate(state: VillageState, events: LogEntry[]): void {
   // jaga-jaga: kalau awal bulan terlewat (mis. desa sempat tamat), misi bulan ini tetap disiapkan
   siapkanMisi(state, Math.floor(state.hari / RULES.hariPerBulan) + 1);
   siapkanMisiMingguan(state);
-  hariKoin(state);
+  hariKoin(state, catat);
   hariBumdes(state);
   hariAspirasi(state, catat, () => `a${state.nomorUrut++}`);
   hariPegawai(state, catat);

@@ -424,11 +424,14 @@ function ringkasKeuangan(state: VillageState) {
   // termin dana desa ikut relasi bupati dan efisiensi pusat yang sedang berlaku (potongan SiLPA hanya di awal tahun)
   const danaDesa = (RULES.danaDesaTahunan / 12) * faktorTermin(state) * (state.nasional?.efek.efisiensi_termin ? 0.9 : 1);
   const bumdes = totalPendapatanBumdes(state) * 30;
+  // tanpa bendahara, iuran dan retribusi baru masuk kas kalau ditagih kades (dan hangus setelah menumpuk 20 hari)
+  const manual = !state.pegawai.includes('bendahara');
+  const ket = manual ? ' (harus ditagih, belum ada bendahara)' : '';
   const pemasukan = [
     { pos: 'Dana desa (rata-rata per bulan, belum termasuk potongan SiLPA)', jumlah: Math.round(danaDesa) },
-    { pos: 'Iuran & retribusi warga', jumlah: Math.round(iuran) },
-    ...dariBangunan,
-    { pos: 'Retribusi balai desa', jumlah: Math.round(usahaLain) },
+    { pos: `Iuran & retribusi warga${ket}`, jumlah: Math.round(iuran) },
+    ...dariBangunan.map((x) => ({ ...x, pos: `${x.pos}${ket}` })),
+    { pos: `Retribusi balai desa${ket}`, jumlah: Math.round(usahaLain) },
     { pos: 'Retribusi perusahaan (PT)', jumlah: retribusiUsaha(state) },
     { pos: 'Pemasukan dari perdes', jumlah: relasiArus.masukPerdes },
     { pos: 'Usaha BUMDes', jumlah: Math.round(bumdes) },
@@ -470,6 +473,10 @@ function ringkasKeuangan(state: VillageState) {
     perkiraan: { pemasukan, pengeluaran, totalMasuk, totalKeluar, bersih: totalMasuk - totalKeluar },
     neraca: { kas: state.kas, bangunan, usaha, utang, totalAset, asetBersih: totalAset - utang },
     batasKoinHari: FITUR.batasKoinHari,
+    /** Iuran dan retribusi yang menumpuk belum ditagih, dan berapa sumber yang sudah penuh (berhenti bertambah). */
+    retribusiBelumDitagih: Math.round(Object.values(state.koin ?? {}).reduce((t, v) => t + v, 0)),
+    sumberPenuh: Object.entries(lajuKoin(state)).filter(([k, per]) => (state.koin?.[k] ?? 0) >= per * FITUR.batasKoinHari - 1).length,
+    tagihManual: manual,
   };
 }
 
