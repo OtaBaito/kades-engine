@@ -108,3 +108,31 @@ test('wakil baru belum terhitung membelot; nama calon tidak berulang dengan lata
     }
   }
 });
+
+test('sidang ijazah tetap diputus walau tergugat sudah mundur dan maju pilkades', () => {
+  let s = denganWakil('anak_pejabat', 'mantan');
+  s.kotakMasuk = [{ instanceId: 'm1', cardId: 'wakil_ijazah_1', hariMasuk: s.hari }];
+  s = applyAction(s, { type: 'putuskan', instanceId: 'm1', opsiId: 'diam' }).state;
+  // wakil mundur dan jadi lawan pilkades
+  const r = stateRelasi(s);
+  const nama = r.wakil!.nama;
+  s.politik.kampanye = { calon: 'pemain', lawan: [{ id: 'wakil', nama, kubu: 'mantan wakil kades', kekuatan: 70 }, { id: 'x', nama: 'Pak Sardi', kubu: 'x', kekuatan: 50 }], bonusSuara: 0 } as typeof s.politik.kampanye;
+  r.wakil = null;
+  s.kotakMasuk = [{ instanceId: 'm2', cardId: 'wakil_ijazah_2', hariMasuk: s.hari }];
+  s.antreanKartu = [];
+  const v = buildView(s) as { kotakMasuk: { teks: string }[] };
+  assert.ok(v.kotakMasuk[0].teks.includes(nama), 'kartu sidang menyebut nama tergugat');
+  s = applyAction(s, { type: 'putuskan', instanceId: 'm2', opsiId: 'terbuka' }).state;
+  s = advance(s, 1).state;
+  assert.equal(stateRelasi(s).kasusIjazah ?? null, null);
+  assert.ok(s.jurnal.some((l) => l.teks.includes(`ijazah ${nama}, mantan wakil kades`)));
+  // ijazah palsu (diset di helper): dicoret dari pilkades
+  assert.ok(!s.politik.kampanye?.lawan.some((l) => l.nama === nama));
+});
+
+test('pilkades: suara terbanyak menang, jurnal menyebut pemenang', async () => {
+  const { bagiSuaraLawan } = await import('../src/politik.ts');
+  const bagi = bagiSuaraLawan([{ nama: 'A', kekuatan: 70 }, { nama: 'B', kekuatan: 50 }], 60);
+  assert.ok(bagi[0].persen > bagi[1].persen * 2, 'suara lawan terkumpul ke penantang terkuat');
+  assert.ok(Math.abs(bagi[0].persen + bagi[1].persen - 60) < 0.2);
+});

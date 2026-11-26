@@ -378,15 +378,28 @@ const koma = (n: number) => String(n).replace('.', ',');
 /** Porsi suara maksimum satu kelompok: selalu ada warga yang memilih lawan. */
 const BATAS_PORSI = 0.85;
 
+/** Porsi dasar suara calon kita. Pemenang pilkades = suara terbanyak, jadi dasarnya lebih rendah dari ambang 50%. */
+const DASAR_SUARA = 0.25;
+
 /** Porsi suara satu kelompok untuk calon kita (tanpa unsur acak). */
 function porsiSuara(s: VillageState, g: GroupId, m: AnggotaKeluarga | undefined, lawanTerkuat: number, bonus: number): number {
   const integritas = ((s.integritas - 50) / 250) * (g === 'tokoh' ? 3 : 1);
   const dasar = m
-    ? 0.36 + (s.kepuasan[g] - 50) / 130 + (s.popularitas - 50) / 300 + (m.elektabilitas - 40) / 150 + (m.kompetensi - 50) / 400 + integritas
-    : 0.36 + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
+    ? DASAR_SUARA + (s.kepuasan[g] - 50) / 130 + (s.popularitas - 50) / 300 + (m.elektabilitas - 40) / 150 + (m.kompetensi - 50) / 400 + integritas
+    : DASAR_SUARA + (s.kepuasan[g] - 50) / 110 + (s.popularitas - 50) / 300 + integritas - 0.06 * (s.politik.periodePemain - 1);
   // penantang kuat benar-benar menggerus suara: kades populer pun harus tetap merawat warga di tahun pilkades
   // wakil setia yang berpamor ikut mendulang suara; wakil yang tidak setia diam-diam menggembosi
   return dasar + bonus / 100 + bonusSuaraWakil(s, g) / 100 - (lawanTerkuat - 50) / 80;
+}
+
+/**
+ * Sisa suara (persen) terbagi ke para lawan. Pemilih yang tidak memilih kita cenderung berkumpul ke penantang
+ * terkuat, jadi pembaginya kekuatan pangkat tiga, bukan sebanding lurus. Dipakai survei dan hasil pilkades.
+ */
+export function bagiSuaraLawan(lawan: { nama: string; kekuatan: number }[], sisa: number): { nama: string; persen: number }[] {
+  const bobot = lawan.map((l) => Math.pow(Math.max(1, l.kekuatan), 3));
+  const total = bobot.reduce((t, b) => t + b, 0) || 1;
+  return lawan.map((l, i) => ({ nama: l.nama, persen: Math.round((sisa * bobot[i] * 10) / total) / 10 }));
 }
 
 /**
@@ -407,13 +420,11 @@ export function surveiElektabilitas(s: VillageState) {
     total += jiwaKelompok(s, g.id);
   }
   const kita = Math.round((suara / total) * 1000) / 10;
-  const sisa = 100 - kita;
-  const totalKekuatan = lawan.reduce((t, l) => t + l.kekuatan, 0) || 1;
   return {
     calon,
     namaCalon: calon === 'pemain' ? s.namaKades : calon === 'penerus' ? (m?.nama ?? '-') : '-',
     persen: calon === 'pemain' || calon === 'penerus' ? kita : 0,
-    lawan: lawan.map((l) => ({ nama: l.nama, persen: Math.round((sisa * l.kekuatan * 10) / totalKekuatan) / 10 })),
+    lawan: bagiSuaraLawan(lawan, 100 - kita),
   };
 }
 
@@ -466,12 +477,14 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
     perKelompok.push({ kelompok: g.id, persen: Math.round(share * 1000) / 10 });
   }
   const persen = Math.round((suara / total) * 1000) / 10;
-  const menang = persen > 50;
+  // suara terbanyak menang: sisa suara terbagi ke para lawan sesuai kekuatan, seperti di survei
+  const juara = bagiSuaraLawan(k.lawan, 100 - persen).sort((a, b) => b.persen - a.persen)[0];
+  const menang = !juara || persen > juara.persen;
   p.kampanye = null;
   s.flags = s.flags.filter((f) => f !== 'lawan_sembako' && f !== 'lapor_panwas');
   if (!menang) {
     s.status = 'kalah';
-    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${koma(persen)}% suara.`);
+    catat('politik', `Pilkades selesai. ${m ? m.nama : s.namaKades} kalah dengan ${koma(persen)}% suara. Pemenangnya ${juara.nama} dengan ${koma(juara.persen)}%.`);
     return { menang, persen, perKelompok };
   }
   if (m) {

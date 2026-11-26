@@ -37,6 +37,9 @@ export interface MakzulWakil {
 export interface KasusIjazah {
   sikap: 'uji' | 'bela' | 'diam';
   sidang?: 'terbuka' | 'tunda' | 'lobi';
+  /** Orang yang digugat: kasusnya tetap berjalan walau dia sudah tidak menjabat wakil. */
+  nama?: string;
+  palsu?: boolean;
 }
 
 export interface EfekWakil {
@@ -174,12 +177,14 @@ export function cekBolehBerhentikan(r: StateRelasi): void {
 export function efekWakil(s: VillageState, e: EfekWakil): void {
   const r = stateRelasi(s);
   const w = r.wakil;
+  // sidang ijazah tetap berjalan walau tergugat sudah mundur dari kursi wakil
+  if (e.sidang && r.kasusIjazah) r.kasusIjazah.sidang = e.sidang;
+  else if (e.sidang && w) r.kasusIjazah = { sikap: 'diam', sidang: e.sidang, nama: w.nama, palsu: ijazahPalsu(w) };
   if (!w) return;
   if (e.loyalitas) w.loyalitas = clamp(w.loyalitas + e.loyalitas);
   if (e.panggung) w.panggung = clamp(panggung(w) + e.panggung);
   if (e.ambisi) w.ambisi = clamp(w.ambisi + e.ambisi);
-  if (e.sikapIjazah) r.kasusIjazah = { sikap: e.sikapIjazah };
-  if (e.sidang) r.kasusIjazah = { sikap: r.kasusIjazah?.sikap ?? 'diam', sidang: e.sidang };
+  if (e.sikapIjazah) r.kasusIjazah = { sikap: e.sikapIjazah, nama: w.nama, palsu: ijazahPalsu(w) };
   if (e.makzul && !r.makzulWakil) {
     // dipicu kartu: tetap lewat sidang BPD; pesannya dicatat saat harian
     r.makzulWakil = { mulaiHari: s.hari, batasHari: s.hari + LAMA_SIDANG_MAKZUL, alasan: alasanMakzul(s, r), olehKades: true, belumDicatat: true };
@@ -205,7 +210,6 @@ type Catat = (j: 'baik' | 'buruk' | 'info' | 'politik', t: string) => void;
 function selesaiWakil(r: StateRelasi): void {
   r.wakil = null;
   r.makzulWakil = null;
-  r.kasusIjazah = null;
 }
 
 function putuskanIjazah(s: VillageState, r: StateRelasi, catat: Catat): void {
@@ -258,6 +262,48 @@ function putuskanIjazah(s: VillageState, r: StateRelasi, catat: Catat): void {
   catat('baik', `Majelis menyatakan ijazah ${w.nama} sah. Penggugat diminta meminta maaf terbuka.${k.sikap === 'bela' ? ' Wakil berterima kasih karena kades pasang badan. (loyalitas +6)' : k.sikap === 'uji' ? ' Kades dinilai adil karena mau menguji terbuka. (integritas +2)' : ''} (pamor wakil +8)`);
 }
 
+/** Putusan untuk tergugat yang sudah tidak menjabat wakil (mundur, membelot, atau diberhentikan). */
+function putuskanIjazahMantan(s: VillageState, r: StateRelasi, catat: Catat): void {
+  const k = r.kasusIjazah!;
+  r.kasusIjazah = null;
+  const nama = k.nama ?? 'mantan wakil kades';
+  const kampanye = s.politik.kampanye;
+  const lawan = kampanye?.lawan.find((l) => l.id === 'wakil' && l.nama === nama);
+  const lolosLobi = k.sidang === 'lobi' && k.palsu && nextRandom(s) < 0.5;
+  if (k.palsu && !lolosLobi) {
+    let coret = '';
+    if (lawan && kampanye) {
+      if (kampanye.lawan.length > 1) kampanye.lawan = kampanye.lawan.filter((l) => l !== lawan);
+      else lawan.kekuatan = 10;
+      coret = ' Panitia pilkades mencoret pencalonannya.';
+    }
+    catat('politik', `Majelis menyatakan ijazah ${nama}, mantan wakil kades, tidak sah.${coret}`);
+    if (k.sidang === 'lobi') {
+      s.integritas = clamp(s.integritas - 10);
+      s.politik.kecurigaan = clamp(s.politik.kecurigaan + 15);
+      catat('buruk', 'Upaya kades menitip pesan ke majelis ikut terbongkar. (integritas -10, gosip +15)');
+    } else if (k.sikap === 'bela') {
+      s.integritas = clamp(s.integritas - 6);
+      s.popularitas = clamp(s.popularitas - 5);
+      catat('buruk', 'Kades yang dulu pasang badan ikut kena getahnya. (integritas -6, popularitas -5)');
+    } else if (k.sikap === 'uji') {
+      s.integritas = clamp(s.integritas + 3);
+      s.popularitas = clamp(s.popularitas + 3);
+      catat('baik', 'Warga memuji kades yang sejak awal meminta uji terbuka. (integritas +3, popularitas +3)');
+    }
+    return;
+  }
+  if (lolosLobi) {
+    s.politik.kecurigaan = clamp(s.politik.kecurigaan + 8);
+    if (lawan) lawan.kekuatan = Math.min(95, lawan.kekuatan + 3);
+    catat('politik', `Gugatan ijazah ${nama} ditolak karena "kurang bukti". Bisik-bisik soal kenalan di kabupaten beredar. (gosip +8)`);
+    return;
+  }
+  if (lawan) lawan.kekuatan = Math.min(95, lawan.kekuatan + 5);
+  if (k.sikap === 'uji') s.integritas = clamp(s.integritas + 2);
+  catat('politik', `Majelis menyatakan ijazah ${nama}, mantan wakil kades, sah.${lawan ? ' Dia makin percaya diri di pilkades. (kekuatan lawan +5)' : ''}${k.sikap === 'uji' ? ' Kades dinilai adil karena mau menguji terbuka. (integritas +2)' : ''}`);
+}
+
 function ijazahTerbongkar(s: VillageState, r: StateRelasi, w: Wakil, k: KasusIjazah, catat: Catat, sudahDihukum: boolean): void {
   w.ijazahTerbukti = true;
   w.panggung = clamp(panggung(w) - 25);
@@ -306,11 +352,15 @@ function putuskanMakzul(s: VillageState, r: StateRelasi, catat: Catat): void {
 
 /** Dipanggil tiap hari dari harianRelasi. */
 export function harianWakil(s: VillageState, r: StateRelasi, catat: Catat): void {
+  if (r.kasusIjazah?.sidang) {
+    if (r.wakil && (!r.kasusIjazah.nama || r.wakil.nama === r.kasusIjazah.nama)) putuskanIjazah(s, r, catat);
+    else putuskanIjazahMantan(s, r, catat);
+  }
   if (!r.wakil) {
     r.makzulWakil = null;
-    r.kasusIjazah = null;
+    // gugatan yang belum disidang tetap menunggu kartunya, asal tergugatnya tercatat
+    if (r.kasusIjazah && !r.kasusIjazah.nama) r.kasusIjazah = null;
   } else {
-    if (r.kasusIjazah?.sidang) putuskanIjazah(s, r, catat);
     if (r.wakil && r.makzulWakil?.belumDicatat) {
       r.makzulWakil.belumDicatat = false;
       catat('politik', `Usul pemakzulan wakil kades ${r.wakil.nama} (${TEKS_ALASAN[r.makzulWakil.alasan]}) masuk ke BPD. Sidang ${Math.max(0, r.makzulWakil.batasHari - s.hari)} hari lagi (peluang lolos sekitar ${Math.round(peluangMakzulWakil(s, r, r.makzulWakil.alasan) * 100)}%).`);

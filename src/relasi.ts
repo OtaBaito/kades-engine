@@ -688,7 +688,6 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   cekBolehBerhentikan(r);
   r.wakil = null;
   r.makzulWakil = null;
-  r.kasusIjazah = null;
   r.jeda['wakil:ganti'] = s.hari + 60;
   r.bpd = clamp(r.bpd - 5);
   if (w.latar === 'keponakan_bupati') ubahRelasi(r, 'bupati', -15);
@@ -703,17 +702,26 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   return `${w.nama} diberhentikan dari kursi wakil kades.${dendam ? ' Dia pulang dengan dendam dan mulai mengumpulkan pendukung.' : ''} (BPD -5)`;
 }
 
+/** Nama tanpa sapaan, untuk membandingkan "Pak Darto" dengan "Darto". */
+function namaInti(n: string): string {
+  return n.trim().replace(/^(pak|bu|mas|mbak|kang|teh|bang|kak|ibu|bapak)\s+/i, '').toLowerCase();
+}
+
 export function buatKandidatAcak(s: VillageState, r: StateRelasi): Wakil[] {
   const latar = (Object.keys(LATAR_WAKIL) as LatarWakil[]).filter((l) => l !== r.wakil?.latar);
   const hasil: Wakil[] = [];
   r.namaWakil ??= [...r.kandidatWakil.map((k) => k.nama), ...(r.wakil ? [r.wakil.nama] : [])];
   const dipakai = new Set<string>([r.wakil?.nama ?? '', ...r.namaWakil]);
+  // jangan sama dengan kades, keluarga, pegawai, pejabat, atau lawan pilkades di desa ini
+  const intiLain = new Set(
+    [s.namaKades, ...(s.politik?.keluarga ?? []).map((k) => k.nama), ...(s.staf ?? []).map((x) => x.nama), ...Object.values(r.tokoh).map((t) => t.nama), ...(s.politik?.kampanye?.lawan ?? []).map((l) => l.nama)].map(namaInti),
+  );
   while (hasil.length < 3 && latar.length) {
     const l = latar.splice(Math.floor(nextRandom(s) * latar.length), 1)[0];
     const def = LATAR_WAKIL[l];
     const g = nextRandom(s) < 0.35 ? 'p' : 'l';
     // nama yang belum pernah dipakai di desa ini; kalau semua sudah terpakai (jarang), boleh berulang
-    const sisa = NAMA_WAKIL[g].filter((n) => !dipakai.has(n));
+    const sisa = NAMA_WAKIL[g].filter((n) => !dipakai.has(n) && !intiLain.has(namaInti(n)));
     const nama = pilihAcak(s, sisa.length ? sisa : NAMA_WAKIL[g]);
     dipakai.add(nama);
     r.namaWakil.push(nama);

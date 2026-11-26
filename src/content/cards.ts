@@ -2892,13 +2892,10 @@ export const CARDS: CardDef[] = [
   {
     "id": "wakil_ijazah_2",
     "judul": "Sidang Gugatan Ijazah Wakil Kades",
-    "teks": "Gugatan warga soal ijazah {wakil} masuk persidangan. Majelis meminta kantor desa menyerahkan berkas pencalonan wakil, termasuk fotokopi ijazah yang dulu dilegalisir. Putusan dibacakan esok hari.",
+    "teks": "Gugatan warga soal ijazah {tergugat} masuk persidangan. Majelis meminta kantor desa menyerahkan berkas pencalonan wakil, termasuk fotokopi ijazah yang dulu dilegalisir. Putusan dibacakan esok hari.",
     "kategori": "politik",
     "bobot": 1,
     "hanyaLanjutan": true,
-    "syarat": {
-      "flag": "wk_ada"
-    },
     "opsi": [
       {
         "id": "terbuka",
