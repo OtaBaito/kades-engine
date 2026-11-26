@@ -14,7 +14,7 @@ export type TugasWakil = 'blusukan' | 'lobi' | 'redam_bpd';
 
 export const TUGAS_WAKIL: Record<TugasWakil, { nama: string; teks: string; biaya: number }> = {
   blusukan: { nama: 'Blusukan ke warga', teks: 'Wakil turun ke kelompok warga yang paling kecewa. Popularitas dan kepuasan kelompok itu naik.', biaya: 2 * JT },
-  lobi: { nama: 'Lobi ke kabupaten', teks: 'Wakil menemui camat dan bupati. Hasilnya lebih besar kalau wakil punya jalur keluarga di kabupaten.', biaya: 3 * JT },
+  lobi: { nama: 'Lobi ke kabupaten', teks: 'Wakil menemui camat dan bupati. Relasi bupati naik dua kali lipat kalau wakil punya jalur keluarga di kabupaten.', biaya: 3 * JT },
   redam_bpd: { nama: 'Redam BPD', teks: 'Wakil mengajak anggota BPD ngopi dan mendengar keluhan mereka. Dukungan BPD naik.', biaya: 2 * JT },
 };
 export const JEDA_TUGAS_WAKIL = 20;
@@ -134,9 +134,9 @@ export function peluangMakzulWakil(s: VillageState, r: StateRelasi, alasan: Makz
   return Math.max(0.05, Math.min(0.95, dasar + dukungBpd - beking - pamor));
 }
 
-function alasanMakzul(r: StateRelasi): MakzulWakil['alasan'] {
+function alasanMakzul(s: VillageState, r: StateRelasi): MakzulWakil['alasan'] {
   const w = r.wakil!;
-  return w.ijazahTerbukti ? 'ijazah' : wakilMembelot(r) ? 'belot' : 'politik';
+  return w.ijazahTerbukti ? 'ijazah' : wakilMembelot(r, s.hari) ? 'belot' : 'politik';
 }
 
 const TEKS_ALASAN: Record<MakzulWakil['alasan'], string> = {
@@ -151,7 +151,7 @@ export function usulMakzulWakil(s: VillageState, olehKades = true): string {
   if (!w) throw new GameError('Belum ada wakil kades.');
   if (r.makzulWakil) throw new GameError('Sidang pemakzulan wakil di BPD sudah berjalan.');
   if (olehKades) cekJeda(s, r, 'wakil:makzul', 'Mengusulkan pemakzulan wakil');
-  const alasan = alasanMakzul(r);
+  const alasan = alasanMakzul(s, r);
   r.makzulWakil = { mulaiHari: s.hari, batasHari: s.hari + LAMA_SIDANG_MAKZUL, alasan, olehKades };
   if (olehKades) {
     r.jeda['wakil:makzul'] = s.hari + JEDA_MAKZUL_WAKIL;
@@ -182,7 +182,7 @@ export function efekWakil(s: VillageState, e: EfekWakil): void {
   if (e.sidang) r.kasusIjazah = { sikap: r.kasusIjazah?.sikap ?? 'diam', sidang: e.sidang };
   if (e.makzul && !r.makzulWakil) {
     // dipicu kartu: tetap lewat sidang BPD; pesannya dicatat saat harian
-    r.makzulWakil = { mulaiHari: s.hari, batasHari: s.hari + LAMA_SIDANG_MAKZUL, alasan: alasanMakzul(r), olehKades: true, belumDicatat: true };
+    r.makzulWakil = { mulaiHari: s.hari, batasHari: s.hari + LAMA_SIDANG_MAKZUL, alasan: alasanMakzul(s, r), olehKades: true, belumDicatat: true };
     r.jeda['wakil:makzul'] = s.hari + JEDA_MAKZUL_WAKIL;
     w.loyalitas = clamp(w.loyalitas - 20);
   }
@@ -324,7 +324,7 @@ export function harianWakil(s: VillageState, r: StateRelasi, catat: Catat): void
     tanda.add('wk_ada');
     if (w.latar === 'anak_pejabat') tanda.add('wk_anak_pejabat');
     if (panggung(w) >= 60) tanda.add('wk_panggung');
-    if (wakilMembelot(r) || (w.loyalitas < 40 && w.ambisi >= 60)) tanda.add('wk_belot');
+    if (wakilMembelot(r, s.hari) || (w.loyalitas < 40 && w.ambisi >= 60 && s.hari - (w.sejakHari ?? 0) >= 30)) tanda.add('wk_belot');
     // isu ijazah tidak menimpa semua wakil: putra pejabat hampir selalu digoyang, yang lain sebagian saja
     const digoyang = w.latar === 'anak_pejabat' || hash(`${w.nama}|${w.id}|isu`) % 100 < 35;
     if (digoyang && !w.ijazahDiuji && !r.kasusIjazah && s.hari - (w.sejakHari ?? 0) >= 45) tanda.add('wk_ijazah');
@@ -368,8 +368,8 @@ export function viewWakilPolitik(s: VillageState, r: StateRelasi) {
     jedaTugas: sisa('wakil:tugas'),
     jedaMakzul: sisa('wakil:makzul'),
     bisaDiberhentikan: !(w && BERBEKING.includes(w.latar) && r.tokoh.bupati.relasi >= 40),
-    peluangMakzul: w ? Math.round(peluangMakzulWakil(s, r, alasanMakzul(r)) * 100) : 0,
-    alasanMakzul: w ? TEKS_ALASAN[alasanMakzul(r)] : null,
+    peluangMakzul: w ? Math.round(peluangMakzulWakil(s, r, alasanMakzul(s, r)) * 100) : 0,
+    alasanMakzul: w ? TEKS_ALASAN[alasanMakzul(s, r)] : null,
     makzul: r.makzulWakil && w
       ? { sisaHari: Math.max(0, r.makzulWakil.batasHari - s.hari), alasan: TEKS_ALASAN[r.makzulWakil.alasan], olehKades: r.makzulWakil.olehKades, peluang: Math.round(peluangMakzulWakil(s, r, r.makzulWakil.alasan) * 100) }
       : null,

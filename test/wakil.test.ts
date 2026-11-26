@@ -78,3 +78,33 @@ test('wakil setia berpamor menambah suara di survei, wakil tidak setia menggembo
   const tanpa = surveiElektabilitas(s).persen;
   assert.ok(setia > tanpa && tanpa > belot, `${setia} > ${tanpa} > ${belot}`);
 });
+
+test('wakil baru belum terhitung membelot; nama calon tidak berulang dengan latar lain', () => {
+  let s = createVillage({ seed: 'belot', namaDesa: 'Sukabelot', namaKades: 'Budi' });
+  s = advance(s, 1).state;
+  const r = stateRelasi(s);
+  r.kandidatWakil = [{ id: 'wb', nama: 'Mas Bowo', latar: 'rival_pilkades', loyalitas: 20, ambisi: 85, panggung: 40, ijazah: 'asli' }];
+  s.kas = 500_000_000;
+  s = applyAction(s, { type: 'wakil', aksi: 'pilih', id: 'wb' }).state;
+  const v = buildView(s) as { relasi: { wakil: { membelot: boolean }; wakilPolitik: { alasanMakzul: string } } };
+  assert.equal(v.relasi.wakil.membelot, false);
+  assert.equal(v.relasi.wakilPolitik.alasanMakzul, 'ketidakcocokan dengan kades');
+  s = applyAction(s, { type: 'wakil', aksi: 'rangkul' }).state;
+  stateRelasi(s).wakil!.loyalitas = 20;
+  s = advance(s, 31).state;
+  stateRelasi(s).wakil!.loyalitas = 20;
+  const v2 = buildView(s) as { relasi: { wakil: { membelot: boolean } } };
+  assert.equal(v2.relasi.wakil.membelot, true);
+  // nama calon: tidak ada yang muncul dua kali sepanjang banyak pencarian
+  const r2 = stateRelasi(s);
+  r2.wakil = null;
+  const lihat = new Set<string>(['Mas Bowo']);
+  for (let i = 0; i < 6; i++) {
+    stateRelasi(s).jeda['wakil:cari'] = 0;
+    s = applyAction(s, { type: 'wakil', aksi: 'cari' }).state;
+    for (const k of stateRelasi(s).kandidatWakil) {
+      assert.ok(!lihat.has(k.nama), `${k.nama} muncul lagi`);
+      lihat.add(k.nama);
+    }
+  }
+});
