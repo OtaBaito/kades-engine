@@ -632,7 +632,8 @@ function cardEligible(state: VillageState, card: CardDef): boolean {
   if (s.flag && !hasFlag(state, s.flag)) return false;
   if (s.tanpaFlag && hasFlag(state, s.tanpaFlag)) return false;
   const bulan = bulanDalamPeriode(state.hari);
-  if (card.kategori === 'kampanye' && bulan < 12) return false;
+  // kartu kampanye hanya untuk kades (atau penerusnya) yang benar-benar mencalonkan diri, sejak kampanye dibuka
+  if (card.kategori === 'kampanye' && (bulan < POLITIK.bulanKampanye || !['pemain', 'penerus'].includes(state.politik.kampanye?.calon ?? ''))) return false;
   if (s.bulanPeriodeMin !== undefined && bulan < s.bulanPeriodeMin) return false;
   if (s.bulanPeriodeMax !== undefined && bulan > s.bulanPeriodeMax) return false;
   if (s.butuhProyek && !isBuilt(state, s.butuhProyek)) return false;
@@ -846,7 +847,7 @@ function spawnCard(state: VillageState, events: LogEntry[], awal: boolean): void
   // supaya urutan event tidak bisa ditebak
   if (!awal && kandidat.length < 5 && nextRandom(state) > kandidat.length / 5) return;
   // bulan kampanye: kartu kampanye diutamakan, supaya tidak tenggelam di antara ratusan kartu desa besar
-  const card = pickWeighted(state, kandidat, (c) => (c.kategori === 'kampanye' ? c.bobot * 5 : c.bobot));
+  const card = pickWeighted(state, kandidat, (c) => (c.kategori === 'kampanye' ? c.bobot * 3 : c.bobot));
   if (!card) return;
   if (card.jedaHari !== undefined) state.kartuSiap[card.id] = state.hari + Math.round(Math.max(card.jedaHari, card.syarat?.bulanTahun || card.kategori === 'kampanye' ? 0 : 240) * (1 + 0.5 * nextRandom(state)));
   // kartu berbasis sifat: pilih pegawai bersifat itu sebagai tokoh cerita

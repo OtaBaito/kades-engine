@@ -1,5 +1,5 @@
 // PAKET KONTEN CONTOH (dibuat otomatis oleh skrip ekspor, jangan diedit manual).
-// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 57 kartu contoh
+// Game lengkap Asal Warga Senang memakai 1.300+ kartu; repo ini memuat 58 kartu contoh
 // supaya mesin bisa dijalankan dan dites. Tambahkan kartumu sendiri: lihat CONTRIBUTING.md.
 import type { CardDef } from '../types.ts';
 
@@ -1607,7 +1607,7 @@ export const CARDS: CardDef[] = [
     "sekali": false,
     "jedaHari": 30,
     "syarat": {
-      "bulanPeriodeMin": 12
+      "bulanPeriodeMin": 10
     },
     "opsi": [
       {
@@ -1639,6 +1639,52 @@ export const CARDS: CardDef[] = [
           "kepuasan": {
             "pemuda": 7
           }
+        }
+      }
+    ]
+  },
+  {
+    "id": "alat_peraga",
+    "judul": "Tim Sukses Minta Dana Alat Peraga",
+    "teks": "Masa kampanye baru dibuka. Tim sukses datang membawa contoh baliho, kaus, dan stiker. Katanya, calon lain sudah memasang baliho di tiap tikungan.",
+    "kategori": "kampanye",
+    "bobot": 6,
+    "sekali": false,
+    "jedaHari": 45,
+    "syarat": {
+      "bulanPeriodeMin": 10
+    },
+    "opsi": [
+      {
+        "id": "baliho",
+        "label": "Pasang baliho besar di jalan utama",
+        "effect": {
+          "kas": -10000000,
+          "popularitas": 3,
+          "kepuasan": {
+            "pedagang": 1
+          }
+        }
+      },
+      {
+        "id": "medsos",
+        "label": "Cukup kampanye lewat media sosial",
+        "effect": {
+          "kas": -3000000,
+          "kepuasan": {
+            "pemuda": 4
+          }
+        }
+      },
+      {
+        "id": "rumah",
+        "label": "Datangi rumah warga satu per satu, tanpa baliho",
+        "effect": {
+          "kepuasan": {
+            "tokoh": 2,
+            "pkk": 3
+          },
+          "integritas": 1
         }
       }
     ]
