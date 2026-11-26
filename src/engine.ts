@@ -693,7 +693,8 @@ export function efekKartuPending(state: VillageState, card: CardDef, opsi: CardO
 
 /** Apakah salah satu opsi kartu ini membawa uang masuk yang bisa ditawar. */
 export function bisaDitawar(state: VillageState, card: CardDef): boolean {
-  if (card.kategori === 'kampanye') return false;
+  // hanya tawaran dari pihak luar (CSR, hibah, investor), bukan kasus seperti uang yang dikembalikan
+  if (card.kategori !== 'peluang') return false;
   return opsiTersedia(state, card).some((o) => (efekKartuBerskala(o.effect, skalaUangKartu(state, card, o)).kas ?? 0) > 0);
 }
 
