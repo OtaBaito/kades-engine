@@ -129,7 +129,7 @@ export function mulaiMega(s: VillageState, id: string): string {
   if (s.level < def.minLevel) throw new GameError(`${def.nama} butuh level desa ${def.minLevel}.`);
   const biaya = biayaMega(def, tingkat);
   const muka = Math.round(biaya * MUKA);
-  if (s.kas < muka) throw new GameError(`Kas tidak cukup untuk uang muka ${Math.round(muka / JT)} jt.`);
+  if (s.kas - (s.pajak?.titipan ?? 0) < muka) throw new GameError(`Kas bebas (di luar titipan pajak) tidak cukup untuk uang muka ${Math.round(muka / JT)} jt.`);
   arus(s, 'Pembangunan', -muka);
   s.mega = {
     id,
@@ -186,11 +186,13 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
   if (m.dibayar < total && s.hari >= m.jatuhTempo) {
     const bayar = Math.min(total - m.dibayar, Math.round(total * TAHAP));
     // kas kurang di hari jatuh tempo: kontraktor memberi tenggang 7 hari sebelum proyek berhenti
-    if (s.kas < bayar && !m.mangkrak && m.tenggang === undefined) {
+    // titipan pajak bukan milik desa: tagihan hanya boleh dibayar dari kas bebas
+    const bebas = s.kas - (s.pajak?.titipan ?? 0);
+    if (bebas < bayar && !m.mangkrak && m.tenggang === undefined) {
       m.tenggang = s.hari + 7;
-      catat('buruk', `Kas belum cukup membayar tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt). Kontraktor memberi tenggang 7 hari sebelum pekerjaan berhenti.`);
+      catat('buruk', `Kas bebas (di luar titipan pajak) belum cukup membayar tahap berikutnya ${nama} (${Math.round(bayar / JT)} jt). Kontraktor memberi tenggang 7 hari sebelum pekerjaan berhenti.`);
     }
-    if (s.kas >= bayar) {
+    if (bebas >= bayar) {
       m.tenggang = undefined;
       arus(s, 'Pembangunan', -bayar);
       m.dibayar += bayar;

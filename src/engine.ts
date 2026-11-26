@@ -13,7 +13,7 @@ import { bukaDusun } from './dusun.ts';
 import { harianMega, mulaiMega, serahTerimaMega } from './mega.ts';
 import { angkatKeluarga, lepasSemuaJabatanKeluarga } from './jabatan.ts';
 import { aturInvestasi, batasSilpa, bulananInvestasi } from './investasi.ts';
-import { aturPajak, bulananPajak, kasBersih } from './pajak.ts';
+import { aturPajak, bulananPajak, kasBersih, setorSerahTerima } from './pajak.ts';
 import { harianUnjuk, tanganiUnjuk } from './unjuk.ts';
 import { bacaBerita, harianBerita, potongEfisiensi, tanggapiPidato } from './berita.ts';
 import { aturUsaha, bulananUsaha, harianUsaha } from './usaha.ts';
@@ -882,11 +882,13 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   state.namaKades = namaKades;
   state.genderKades = gender ?? tebakGender(namaKades);
   if ((state.hari % HARI_PER_PERIODE) === 0 || state.pilkades.at(-1)?.periode === state.periode) state.periode += 1;
+  const pajakLama = setorSerahTerima(state);
   const kasBebasLama = Math.max(0, state.kas - (state.pajak?.titipan ?? 0));
   const pesanMega = serahTerimaMega(state, kasBebasLama);
   // sisa kas bebas (setelah melunasi proyek besar) ikut sebagai SiLPA, dibatasi supaya kades baru tetap mulai dari bawah
   const terpakaiMega = pesanMega ? Math.min(kasBebasLama, (state.mega?.dibayar ?? 0) - (input.mega?.dibayar ?? 0)) : 0;
   const silpa = Math.min(SILPA_GANTI_KADES, Math.max(0, kasBebasLama - terpakaiMega));
+  // kekurangan setor pajak kades lama tetap tercatat sebagai titipan (utang): kas bebas kades baru berkurang sebesar itu
   state.kas = RULES.kasAwal + silpa;
   state.integritas = 70;
   state.popularitas = 50;
@@ -900,10 +902,6 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   // misi mengikuti bulan berjalan (bulan saat desa tamat sempat terlewat)
   siapkanMisi(state, Math.floor(state.hari / RULES.hariPerBulan) + 1);
   siapkanMisiMingguan(state);
-  if (state.pajak) {
-    state.pajak.titipan = 0;
-    state.pajak.titipanPbb = 0;
-  }
   const r = state.relasi;
   if (r) {
     for (const t of Object.values(r.tokoh)) t.relasi = 50;
@@ -914,6 +912,8 @@ export function lanjutkanDesa(input: VillageState, namaKades: string, gender?: G
   }
   state.ringkasanPergi = undefined;
   log(state, events, 'politik', `${namaKades} dilantik sebagai kades baru ${state.namaDesa}, meneruskan desa peninggalan ${namaLama}. Kepercayaan warga dimulai dari awal.`);
+  if (pajakLama.disetor > 0) log(state, events, 'info', `Titipan pajak kades lama ${formatRupiah(pajakLama.disetor)} disetor ke kas negara saat serah terima.`);
+  if (pajakLama.sisa > 0) log(state, events, 'buruk', `Kades lama meninggalkan tunggakan titipan pajak ${formatRupiah(pajakLama.sisa)}. Tunggakan ini tetap wajib disetor dan kena denda kalau dibiarkan.`);
   if (pesanMega) log(state, events, 'info', pesanMega);
   if (silpa > 0) log(state, events, 'info', `SiLPA dari kades lama ${formatRupiah(silpa)} ikut masuk kas awal${kasBebasLama - terpakaiMega > silpa ? ' (sisanya dikembalikan ke kas daerah)' : ''}.`);
   return state;

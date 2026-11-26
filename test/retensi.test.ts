@@ -378,3 +378,19 @@ test('kartu bupati percepat: lembur memajukan selesai, ganti kades membawa SiLPA
   assert.equal(n.kas, 60_000_000 + 150_000_000);
   assert.ok(n.jurnal.some((l) => /SiLPA dari kades lama/.test(l.teks)));
 });
+
+test('ganti kades: titipan pajak disetor dari kas lama, kekurangannya tetap jadi tunggakan', async () => {
+  const { lanjutkanDesa } = await import('../src/index.ts');
+  let s = createVillage({ seed: 'pajak-ganti', namaDesa: 'A', namaKades: 'B' });
+  s = applyAction(s, { type: 'pajak', aksi: 'otomatis_mati' }).state;
+  s.pajak!.titipan = 50_000_000;
+  s.kas = 30_000_000;
+  s.status = 'pensiun' as typeof s.status;
+  const n = lanjutkanDesa(s, 'Sulastri');
+  assert.equal(n.pajak!.titipan, 20_000_000);
+  assert.ok(n.jurnal.some((l) => /tunggakan titipan pajak/.test(l.teks)));
+  s.kas = 300_000_000;
+  const m = lanjutkanDesa(s, 'Sulastri');
+  assert.equal(m.pajak!.titipan, 0);
+  assert.equal(m.kas, 60_000_000 + 150_000_000);
+});

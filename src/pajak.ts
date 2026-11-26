@@ -211,3 +211,14 @@ export function viewPajak(s: VillageState) {
     },
   };
 }
+
+/**
+ * Serah terima kades: titipan pajak disetor dari kas lama. Kalau kas tidak cukup, kekurangannya tetap jadi
+ * titipan (utang pajak desa) yang harus disetor kades baru, bukan hilang.
+ */
+export function setorSerahTerima(s: VillageState): { disetor: number; sisa: number } {
+  const p = s.pajak;
+  if (!p || p.titipan <= 0) return { disetor: 0, sisa: 0 };
+  const disetor = setor(s, p.titipan);
+  return { disetor, sisa: p.titipan };
+}
