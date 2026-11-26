@@ -327,6 +327,8 @@ export interface StateRelasi {
   kandidatWakil: Wakil[];
   /** Sidang pemakzulan wakil di BPD. */
   makzulWakil?: MakzulWakil | null;
+  /** Mantan wakil yang pulang dengan dendam: bisa maju melawanmu di pilkades berikutnya. */
+  mantanWakil?: { nama: string; sebab: 'diberhentikan' | 'dimakzulkan'; ijazahPalsu: boolean } | null;
   /** Gugatan ijazah wakil yang sedang berjalan. */
   kasusIjazah?: KasusIjazah | null;
   jeda: Record<string, number>;
@@ -701,7 +703,10 @@ export function aturWakil(s: VillageState, aksi: AksiWakil, id?: string, dana: S
   }
   if (r.kandidatWakil.length === 0) r.kandidatWakil = buatKandidatAcak(s, r);
   const dendam = w.ambisi >= 60;
-  if (dendam) s.flags = [...new Set([...(s.flags ?? []), 'mantan_wakil_dendam'])];
+  if (dendam) {
+    s.flags = [...new Set([...(s.flags ?? []), 'mantan_wakil_dendam'])];
+    r.mantanWakil = { nama: w.nama, sebab: 'diberhentikan', ijazahPalsu: Boolean(w.ijazahTerbukti) };
+  }
   return `${w.nama} diberhentikan dari kursi wakil kades.${dendam ? ' Dia pulang dengan dendam dan mulai mengumpulkan pendukung.' : ''} (BPD -5)`;
 }
 
@@ -901,10 +906,19 @@ export function harianRelasi(s: VillageState, catat: Catat): void {
     catat('buruk', `Wakil kades ${r.wakil.nama} mundur dan ikut mencalonkan diri melawanmu di pilkades.`);
     r.wakil = null;
   } else if (k && s.flags?.includes('mantan_wakil_dendam') && !k.lawan.some((l) => l.id === 'mantan_wakil')) {
-    k.lawan.push({ id: 'mantan_wakil', nama: 'Mantan wakil kades', kubu: 'barisan sakit hati', kekuatan: 50 });
     s.flags = s.flags.filter((f) => f !== 'mantan_wakil_dendam');
-    catat('buruk', 'Mantan wakil kades yang dulu kamu berhentikan ikut maju di pilkades.');
+    const mw = r.mantanWakil;
+    r.mantanWakil = null;
+    if (mw?.ijazahPalsu) {
+      catat('politik', `${mw.nama}, mantan wakil kades, ingin maju di pilkades, tapi panitia menolak berkasnya: ijazahnya sudah dinyatakan tidak sah.`);
+    } else {
+      const nama = mw?.nama ?? 'Mantan wakil kades';
+      k.lawan.push({ id: 'mantan_wakil', nama, kubu: 'barisan sakit hati', kekuatan: 50 });
+      const sebab = mw?.sebab === 'dimakzulkan' ? 'dimakzulkan BPD' : 'dulu kamu berhentikan';
+      catat('buruk', mw ? `${nama}, mantan wakil kades yang ${sebab}, ikut maju di pilkades.` : 'Mantan wakil kades yang dulu kamu berhentikan ikut maju di pilkades.');
+    }
   }
+
 }
 
 function putuskanMosi(s: VillageState, r: StateRelasi, catat: Catat) {

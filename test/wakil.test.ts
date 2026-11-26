@@ -142,3 +142,22 @@ test('label latar ikut gender: putri pejabat untuk perempuan', async () => {
   assert.equal(namaLatarWakil('anak_pejabat', 'Mbak Sekar'), 'Putri pejabat kabupaten');
   assert.equal(namaLatarWakil('anak_pejabat', 'Mas Aris'), 'Putra pejabat kabupaten');
 });
+
+test('mantan wakil dendam: tampil dengan nama dan sebab yang benar, ijazah palsu ditolak panitia', () => {
+  const s = denganWakil('anak_pejabat', 'dendam');
+  const r = stateRelasi(s);
+  // dimakzulkan karena ijazah palsu: tidak boleh maju
+  r.mantanWakil = { nama: 'Mas Aris', sebab: 'dimakzulkan', ijazahPalsu: true };
+  r.wakil = null;
+  s.flags = [...s.flags, 'mantan_wakil_dendam'];
+  s.politik.kampanye = { calon: 'pemain', lawan: [{ id: 'x', nama: 'Pak Sardi', kubu: 'x', kekuatan: 50 }], bonusSuara: 0 } as typeof s.politik.kampanye;
+  let n = advance(s, 1).state;
+  assert.ok(!n.politik.kampanye!.lawan.some((l) => l.id === 'mantan_wakil'));
+  assert.ok(n.jurnal.some((l) => /panitia menolak berkasnya/.test(l.teks)));
+  // dimakzulkan, ijazah sah: maju dengan nama aslinya
+  const r2 = stateRelasi(s);
+  r2.mantanWakil = { nama: 'Mas Aris', sebab: 'dimakzulkan', ijazahPalsu: false };
+  n = advance(s, 1).state;
+  assert.ok(n.politik.kampanye!.lawan.some((l) => l.id === 'mantan_wakil' && l.nama === 'Mas Aris'));
+  assert.ok(n.jurnal.some((l) => /Mas Aris, mantan wakil kades yang dimakzulkan BPD/.test(l.teks)));
+});

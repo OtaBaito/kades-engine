@@ -327,7 +327,10 @@ function putuskanMakzul(s: VillageState, r: StateRelasi, catat: Catat): void {
   if (nextRandom(s) < peluang) {
     const backed = BERBEKING.includes(w.latar);
     if (backed) ubahRelasi(r, 'bupati', -10);
-    if (w.ambisi >= 60) s.flags = [...new Set([...(s.flags ?? []), 'mantan_wakil_dendam'])];
+    if (w.ambisi >= 60) {
+      s.flags = [...new Set([...(s.flags ?? []), 'mantan_wakil_dendam'])];
+      r.mantanWakil = { nama: w.nama, sebab: 'dimakzulkan', ijazahPalsu: Boolean(w.ijazahTerbukti) };
+    }
     if (m.alasan === 'ijazah') {
       s.integritas = clamp(s.integritas + 2);
       s.popularitas = clamp(s.popularitas + 3);
