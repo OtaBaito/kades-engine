@@ -308,7 +308,8 @@ test('pertumbuhan tanpa batas: proyek besar bisa dikembangkan bertahap, skor Pem
   assert.ok((s.mega?.biaya ?? 0) > def.biaya);
   s = advance(s, def.durasi + 5).state;
   assert.equal(s.megaSelesai?.filter((x) => x === 'jalan_tembus').length, 2);
-  assert.ok(s.pemasukanTambahanBulanan >= def.pemasukanBulanan * 2);
+  // tahap pengembangan memberi separuh pemasukan proyek awal
+  assert.ok(s.pemasukanTambahanBulanan >= def.pemasukanBulanan * 1.5);
   assert.ok(raporWarisan(s).pembangunan > skor1);
 });
 
@@ -393,4 +394,20 @@ test('ganti kades: titipan pajak disetor dari kas lama, kekurangannya tetap jadi
   const m = lanjutkanDesa(s, 'Sulastri');
   assert.equal(m.pajak!.titipan, 0);
   assert.equal(m.kas, 60_000_000 + 150_000_000);
+});
+
+test('ekonomi akhir: biaya proyek besar ikut kemampuan desa, BUMDes jenuh di atas 20 level', async () => {
+  const { MEGA } = await import('../src/index.ts');
+  const { biayaMega } = await import('../src/mega.ts');
+  const { kejenuhanBumdes } = await import('../src/fitur.ts');
+  const def = MEGA[0];
+  const s = createVillage({ seed: 'eko', namaDesa: 'A', namaKades: 'B' });
+  assert.equal(biayaMega(def, 0, s), def.biaya, 'desa biasa: harga dasar');
+  s.laporan = [1, 2, 3].map((b) => ({ bulan: b, pemasukan: 700_000_000 }) as (typeof s.laporan)[number]);
+  assert.equal(biayaMega(def, 0, s), def.biaya * 2);
+  s.bumdes = { a: 11 };
+  const k11 = kejenuhanBumdes(s);
+  assert.ok(Math.abs(k11 - 1 / 1.8) < 1e-9, 'jumlah level kecil tidak berubah');
+  s.bumdes = { a: 38 };
+  assert.ok(kejenuhanBumdes(s) < 1 / 4.5);
 });

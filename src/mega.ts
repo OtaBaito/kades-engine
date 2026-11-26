@@ -95,8 +95,19 @@ const NAIK_BIAYA = 1.6;
 export function tingkatMega(s: VillageState, id: string): number {
   return (s.megaSelesai ?? []).filter((x) => x === id).length;
 }
-export function biayaMega(def: MegaDef, tingkat: number): number {
-  return Math.round((def.biaya * Math.pow(NAIK_BIAYA, tingkat)) / JT) * JT;
+/**
+ * Biaya proyek besar. Dengan state: ikut naik kalau pemasukan rata-rata 3 bulan terakhir di atas Rp 350 jt,
+ * supaya desa yang sudah kaya tetap harus menabung beberapa bulan (konsorsium menawar sesuai kemampuan desa).
+ */
+export function biayaMega(def: MegaDef, tingkat: number, s?: VillageState): number {
+  return Math.round((def.biaya * Math.pow(NAIK_BIAYA, tingkat) * (s ? faktorKemampuan(s) : 1)) / JT) * JT;
+}
+
+const BATAS_KEMAMPUAN = 350 * JT;
+export function faktorKemampuan(s: VillageState): number {
+  const lap = (s.laporan ?? []).slice(-3);
+  const rata = lap.length ? lap.reduce((t, l) => t + (l.pemasukan ?? 0), 0) / lap.length : 0;
+  return Math.max(1, rata / BATAS_KEMAMPUAN);
 }
 const skala = (tingkat: number) => (tingkat === 0 ? 1 : 0.5);
 /** Hari yang dipangkas kalau kades setuju lembur di kartu "Bupati minta dipercepat". */
@@ -127,7 +138,7 @@ export function mulaiMega(s: VillageState, id: string): string {
   const nama = NAMA_TAHAP(def, tingkat);
   if (s.mega) throw new GameError('Masih ada proyek besar yang berjalan. Konsorsium hanya sanggup satu per satu.');
   if (s.level < def.minLevel) throw new GameError(`${def.nama} butuh level desa ${def.minLevel}.`);
-  const biaya = biayaMega(def, tingkat);
+  const biaya = biayaMega(def, tingkat, s);
   const muka = Math.round(biaya * MUKA);
   if (s.kas - (s.pajak?.titipan ?? 0) < muka) throw new GameError(`Kas bebas (di luar titipan pajak) tidak cukup untuk uang muka ${Math.round(muka / JT)} jt.`);
   arus(s, 'Pembangunan', -muka);
@@ -224,9 +235,9 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
     s.flags = (s.flags ?? []).filter((f) => f !== 'mega_berjalan' && f !== 'mega_jauh');
     for (const [k, v] of Object.entries(def.indeks) as [IndexId, number][]) s.indeks[k] = Math.min(100, s.indeks[k] + Math.round(v * f));
     for (const [g, v] of Object.entries(def.target) as [GroupId, number][]) s.kepuasan[g] = Math.min(100, s.kepuasan[g] + Math.round(v * f));
-    s.pemasukanTambahanBulanan += Math.round(def.pemasukanBulanan * (m.porsi ?? 1));
+    s.pemasukanTambahanBulanan += Math.round(def.pemasukanBulanan * f);
     s.popularitas = Math.min(100, s.popularitas + Math.round(def.popularitas * f));
-    catat('baik', `${nama} DIRESMIKAN! Pita digunting bupati, warga memadati lokasi. Kepuasan naik permanen dan ada pemasukan baru ${Math.round((def.pemasukanBulanan * (m.porsi ?? 1)) / JT)} jt per bulan.`);
+    catat('baik', `${nama} DIRESMIKAN! Pita digunting bupati, warga memadati lokasi. Kepuasan naik permanen dan ada pemasukan baru ${Math.round((def.pemasukanBulanan * f) / JT)} jt per bulan.`);
   }
 }
 
@@ -240,7 +251,7 @@ function statistikMega(s: VillageState) {
     const d = MEGA.find((x) => x.id === id);
     if (!d) continue;
     investasi += biayaMega(d, k);
-    pemasukan += d.pemasukanBulanan;
+    pemasukan += d.pemasukanBulanan * skala(k);
   }
   const kelompok: GroupId[] = ['petani', 'pedagang', 'pemuda', 'pkk', 'tokoh', 'perantau'];
   return {
@@ -278,7 +289,7 @@ export function viewMega(s: VillageState) {
       : null,
     daftar: MEGA.map((d) => {
       const tingkat = tingkatMega(s, d.id);
-      const biaya = biayaMega(d, tingkat);
+      const biaya = biayaMega(d, tingkat, s);
       const f = skala(tingkat);
       const kali = (o: Record<string, number | undefined>): Record<string, number> => {
         const out: Record<string, number> = {};
@@ -293,7 +304,7 @@ export function viewMega(s: VillageState) {
         uangMuka: Math.round(biaya * MUKA),
         durasi: d.durasi,
         minLevel: d.minLevel,
-        pemasukanBulanan: d.pemasukanBulanan,
+        pemasukanBulanan: Math.round(d.pemasukanBulanan * f),
         indeks: kali(d.indeks),
         target: kali(d.target),
         /** 0 = belum berdiri; 1+ = sudah berdiri, berikutnya pengembangan tahap (tingkat+1). */
@@ -373,7 +384,7 @@ export function serahTerimaMega(s: VillageState, kasLama: number): string | null
   if (m.dibayar >= total) return `Sisa kas kades lama (${Math.round(pakai / JT)} jt) melunasi tagihan ${nama}. Pengerjaan berlanjut tanpa tagihan baru.`;
   m.porsi = Math.max(0.1, m.dibayar / total) * (m.porsi ?? 1);
   m.biaya = m.dibayar;
-  return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat: pemasukan sekitar ${Math.round((def.pemasukanBulanan * m.porsi) / JT)} jt per bulan dari normalnya ${Math.round(def.pemasukanBulanan / JT)} jt), kades baru tidak menanggung utangnya.`;
+  return `Tagihan ${nama} belum lunas ${Math.round((total - m.dibayar) / JT)} jt${pakai > 0 ? ` setelah dibayar sisa kas lama ${Math.round(pakai / JT)} jt` : ''}. Kontrak dirampingkan: proyek diselesaikan sebatas dana yang sudah masuk (sekitar ${Math.round(m.porsi * 100)}% manfaat: pemasukan sekitar ${Math.round((def.pemasukanBulanan * skala(m.tahapKe ?? 0) * m.porsi) / JT)} jt per bulan dari normalnya ${Math.round((def.pemasukanBulanan * skala(m.tahapKe ?? 0)) / JT)} jt), kades baru tidak menanggung utangnya.`;
 }
 
 /** Peringatan di kartu yang memakan kas saat tagihan tahap proyek besar sudah dekat. */

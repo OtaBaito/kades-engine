@@ -439,11 +439,12 @@ export function biayaBumdes(def: (typeof BUMDES)[number], level: number, s?: Vil
 
 /**
  * Kejenuhan pasar desa: makin banyak usaha (dan levelnya), makin sedikit pembeli per usaha.
- * 1 = tidak jenuh. Total 3 level usaha masih penuh, lalu turun.
+ * 1 = tidak jenuh. Total 3 level usaha masih penuh, lalu turun (pendapatan total mendekati batas, tidak tumbuh tanpa ujung).
  */
 export function kejenuhanBumdes(s: VillageState, tambahLevel = 0): number {
   const totalLevel = Object.values(s.bumdes ?? {}).reduce((t, l) => t + Math.max(0, l), 0) + tambahLevel;
-  return 1 / (1 + 0.1 * Math.max(0, totalLevel - 3));
+  // di atas 20 level total, pasar desa benar-benar jenuh: tambahan usaha nyaris tidak menambah pendapatan
+  return 1 / (1 + 0.1 * Math.max(0, totalLevel - 3) + 0.005 * Math.max(0, totalLevel - 20) ** 2);
 }
 
 /** Pendapatan BUMDes per hari setelah bonus manajer dan kejenuhan pasar. */
