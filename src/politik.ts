@@ -480,6 +480,7 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
   // suara terbanyak menang: sisa suara terbagi ke para lawan sesuai kekuatan, seperti di survei
   const juara = bagiSuaraLawan(k.lawan, 100 - persen).sort((a, b) => b.persen - a.persen)[0];
   const menang = !juara || persen > juara.persen;
+  const runner = juara ? ` Runner-up ${juara.nama} dengan ${koma(juara.persen)}%.` : '';
   p.kampanye = null;
   s.flags = s.flags.filter((f) => f !== 'lawan_sembako' && f !== 'lapor_panwas');
   if (!menang) {
@@ -491,7 +492,7 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
     p.pemimpin = m.id;
     p.periodeKeluarga[m.id] = (p.periodeKeluarga[m.id] ?? 0) + 1;
     m.jabatan = 'Kepala Desa';
-    catat('politik', `${m.nama} menang ${koma(persen)}% suara dan dilantik jadi kades. Kamu kini mengatur dari belakang layar.`);
+    catat('politik', `${m.nama} menang ${koma(persen)}% suara dan dilantik jadi kades.${runner} Kamu kini mengatur dari belakang layar.`);
   } else {
     if (p.pemimpin !== 'pemain') {
       const lama = p.keluarga.find((x) => x.id === p.pemimpin);
@@ -505,8 +506,8 @@ export function hitungPilkades(s: VillageState, catat: Catat): { menang: boolean
     catat(
       'politik',
       kembali
-        ? `Menang pilkades dengan ${koma(persen)}% suara dan kembali menjabat. Batas dua periode dihitung ulang: ini periode pertama setelah jeda.`
-        : `Menang pilkades dengan ${koma(persen)}% suara. Periode ke-${p.periodePemain} dimulai.`,
+        ? `Menang pilkades dengan ${koma(persen)}% suara dan kembali menjabat.${runner} Batas dua periode dihitung ulang: ini periode pertama setelah jeda.`
+        : `Menang pilkades dengan ${koma(persen)}% suara.${runner} Periode ke-${p.periodePemain} dimulai.`,
     );
   }
   return { menang, persen, perKelompok };
