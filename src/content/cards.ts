@@ -2472,7 +2472,7 @@ export const CARDS: CardDef[] = [
     "judul": "Bupati Minta Proyek Besar Dipercepat",
     "teks": "Bupati ingin meresmikan proyek besar desa sebelum musim kampanye kabupaten. Lembur pekerja butuh biaya tambahan.",
     "kategori": "peluang",
-    "bobot": 2,
+    "bobot": 4,
     "jedaHari": 150,
     "syarat": {
       "flag": "mega_jauh"

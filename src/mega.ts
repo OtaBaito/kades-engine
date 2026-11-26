@@ -183,8 +183,9 @@ export function harianMega(s: VillageState, catat: (j: 'baik' | 'buruk' | 'info'
       catat('buruk', `${nama} MANGKRAK: kas tidak cukup membayar tahap berikutnya (${Math.round(bayar / JT)} jt). Pekerja pulang, warga mulai bertanya ke mana uangnya.`);
     }
   }
-  // kartu "percepat" hanya masuk akal kalau proyek masih lama selesai
-  const jauh = !m.mangkrak && m.selesaiHari - s.hari > 60;
+  // kartu "percepat" hanya masuk akal di paruh pertama pengerjaan, selagi sisa waktunya masih panjang
+  const durasi = Math.max(1, m.selesaiHari - m.mulaiHari);
+  const jauh = !m.mangkrak && (s.hari - m.mulaiHari) / durasi < 0.5 && m.selesaiHari - s.hari > 25;
   s.flags = jauh ? [...new Set([...(s.flags ?? []), 'mega_jauh'])] : (s.flags ?? []).filter((f) => f !== 'mega_jauh');
   if (m.mangkrak) {
     // proyek berhenti: tanggal selesai ikut mundur, warga makin kesal tiap bulan
@@ -315,7 +316,7 @@ export const KARTU_MEGA: CardDef[] = [
     judul: 'Bupati Minta Proyek Besar Dipercepat',
     teks: 'Bupati ingin meresmikan proyek besar desa sebelum musim kampanye kabupaten. Lembur pekerja butuh biaya tambahan.',
     kategori: 'peluang',
-    bobot: 2,
+    bobot: 4,
     jedaHari: 150,
     syarat: { flag: 'mega_jauh' },
     opsi: [
